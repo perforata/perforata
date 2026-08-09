@@ -1,3 +1,9 @@
 *.dxf
+*.svg
 __pycache__/
 .venv/
+.pytest_cache/
+uv.lock
+*.egg-info/
+dist/
+presets/user/
