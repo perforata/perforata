@@ -162,3 +162,9 @@ share it; if you distribute a modified version or offer it as a network
 service, you must make your source available under the same terms. For
 commercial licensing outside the AGPL (e.g. embedding the engine in a
 proprietary CAD plugin), contact the author.
+
+Contributions are welcome under the project's contributor license
+agreement ([CLA.md](CLA.md)): you keep ownership of your work and it
+always stays available under the open-source license, while granting
+the project the rights needed to also offer commercial licenses. State
+your agreement in your first pull request.
