@@ -3,6 +3,8 @@ name = "perforata"
 version = "0.2.0"
 description = "Parametric perforation pattern generator — node-graph engine with Streamlit UI"
 readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "numpy",

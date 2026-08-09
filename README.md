@@ -153,3 +153,12 @@ shapes = g.run("cuts")
 * The UI's Export section includes a **Config dump (.txt)** button: a
   plain-text report of the widget state and the constructed node
   pipeline (plus result stats), for debugging and bug reports.
+
+## License
+
+perforata is licensed under the **GNU Affero General Public License
+v3.0 or later** ([LICENSE](LICENSE)). You are free to use, modify, and
+share it; if you distribute a modified version or offer it as a network
+service, you must make your source available under the same terms. For
+commercial licensing outside the AGPL (e.g. embedding the engine in a
+proprietary CAD plugin), contact the author.
