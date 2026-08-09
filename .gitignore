@@ -1,0 +1,3 @@
+*.dxf
+__pycache__/
+.venv/
