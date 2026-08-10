@@ -297,6 +297,32 @@ def test_shape_gradient_square_metric():
     assert abs(v[0] - 1.0) < 1e-9 and abs(v[1] - 1.0) < 1e-9
 
 
+def test_shape_gradient_rectangle_metric():
+    # A wide, short rectangle: 1.0 wide, 0.5 tall (centered).
+    f = ShapeGradient("rectangle", falloff="linear", width=1.0, height=0.5)
+    uv = np.array([
+        [0.5, 0.5],    # center -> 0
+        [1.0, 0.5],    # right edge of the rect -> 1
+        [0.5, 0.75],   # top edge of the rect -> 1
+        [0.75, 0.5],   # halfway to the right edge -> 0.5
+        [0.5, 1.0],    # beyond the rect vertically -> clamps at 1
+    ])
+    v = f.sample(uv)
+    assert abs(v[0]) < 1e-9
+    assert abs(v[1] - 1.0) < 1e-9
+    assert abs(v[2] - 1.0) < 1e-9
+    assert abs(v[3] - 0.5) < 1e-9
+    assert abs(v[4] - 1.0) < 1e-9
+
+
+def test_shape_gradient_rectangle_default_is_square():
+    # Default width=height=1.0 matches the square metric.
+    rect = ShapeGradient("rectangle", falloff="linear")
+    square = ShapeGradient("square", falloff="linear")
+    uv = np.random.default_rng(0).random((50, 2))
+    assert np.allclose(rect.sample(uv), square.sample(uv))
+
+
 def test_image_field_from_array():
     img = np.zeros((10, 10))
     img[:, 5:] = 1.0  # right half white

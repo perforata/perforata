@@ -361,7 +361,7 @@ def _field_source_inner(source: str, key: str):
     if source == "Shape gradient":
         c1, c2 = st.columns(2)
         shape = c1.selectbox("Gradient shape",
-                             ["circle", "square", "hexagon"],
+                             ["circle", "square", "rectangle", "hexagon"],
                              key=f"{key}_gshape",
                              help="Contour shape the gradient radiates "
                                   "from.")
@@ -372,6 +372,19 @@ def _field_source_inner(source: str, key: str):
                                help="sphere = hemisphere height profile: "
                                     "with 'Strong at center' the cutouts "
                                     "shade a 3D ball resting on the panel.")
+        gw = gh = 1.0
+        if shape == "rectangle":
+            c1, c2 = st.columns(2)
+            gw = c1.slider("Rect width (vs canvas)", 0.05, 1.0, 1.0, 0.05,
+                           key=f"{key}_gw",
+                           help="Width of the rectangle the gradient "
+                                "reaches 1 at, as a fraction of the "
+                                "canvas.")
+            gh = c2.slider("Rect height (vs canvas)", 0.05, 1.0, 0.5, 0.05,
+                           key=f"{key}_gh",
+                           help="Height of the rectangle the gradient "
+                                "reaches 1 at, as a fraction of the "
+                                "canvas.")
         k = 3.0
         if falloff in ("exponential", "gaussian"):
             k = st.slider("Steepness", 0.5, 10.0, 3.0, 0.5,
@@ -382,7 +395,8 @@ def _field_source_inner(source: str, key: str):
                           key=f"{key}_ginv",
                           help="On: field peaks at the middle and fades "
                                "outward. Off: strongest at the rim.")
-        return ShapeGradient(shape=shape, falloff=falloff, k=k, invert=inv)
+        return ShapeGradient(shape=shape, falloff=falloff, k=k, invert=inv,
+                             width=gw, height=gh)
     if source == "Uploaded image":
         up = st.file_uploader("Image (logo / letter)",
                               type=["png", "jpg", "jpeg", "bmp", "gif"],

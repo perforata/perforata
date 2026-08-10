@@ -199,11 +199,15 @@ class ShapeGradient(Field):
     flips this (1 at center — e.g. big holes in the middle, shrinking
     outward with an exponential law).
 
-    shape   : "circle", "square", or "hexagon" — the level sets of the
-              distance metric take that shape.
+    shape   : "circle", "square", "rectangle", or "hexagon" — the level
+              sets of the distance metric take that shape.
     falloff : "linear", "quadratic", "exponential", "gaussian", or
               "sphere" (hemisphere profile — see :func:`apply_falloff`).
     k       : steepness of the nonlinear falloffs.
+    width, height : extents of the "rectangle" shape as fractions of the
+              unit square (1.0 spans the full canvas). Ignored by the
+              other shapes, whose boundary is always the inscribed
+              shape.
 
     Example — circular exponential gradient controlling cutout size::
 
@@ -214,27 +218,37 @@ class ShapeGradient(Field):
     """
 
     def __init__(self, shape: str = "circle", falloff: str = "linear",
-                 k: float = 3.0, invert: bool = False):
-        super().__init__(shape=shape, falloff=falloff, k=k, invert=invert)
+                 k: float = 3.0, invert: bool = False,
+                 width: float = 1.0, height: float = 1.0):
+        super().__init__(shape=shape, falloff=falloff, k=k, invert=invert,
+                         width=width, height=height)
         self.shape = shape
         self.falloff = falloff
         self.k = float(k)
         self.invert = invert
+        self.width = float(width)
+        self.height = float(height)
 
     def sample(self, uv):
         du = uv[:, 0] - 0.5
         dv = uv[:, 1] - 0.5
         if self.shape == "circle":
-            d = np.hypot(du, dv)
+            d = np.hypot(du, dv) / 0.5
         elif self.shape == "square":
-            d = np.maximum(np.abs(du), np.abs(dv))  # Chebyshev metric
+            d = np.maximum(np.abs(du), np.abs(dv)) / 0.5  # Chebyshev
+        elif self.shape == "rectangle":
+            # Chebyshev metric scaled per axis: 1 on the boundary of the
+            # centered width x height rectangle.
+            half_w = max(self.width / 2.0, 1e-9)
+            half_h = max(self.height / 2.0, 1e-9)
+            d = np.maximum(np.abs(du) / half_w, np.abs(dv) / half_h)
         elif self.shape == "hexagon":
             # Regular hexagon metric (flat sides left/right)
             ax, ay = np.abs(du), np.abs(dv)
-            d = np.maximum(ax, ax / 2.0 + ay * (np.sqrt(3) / 2.0))
+            d = np.maximum(ax, ax / 2.0 + ay * (np.sqrt(3) / 2.0)) / 0.5
         else:
             raise ValueError(f"unknown shape {self.shape!r}")
-        vals = apply_falloff(d / 0.5, self.falloff, self.k)
+        vals = apply_falloff(d, self.falloff, self.k)
         return 1.0 - vals if self.invert else vals
 
 
