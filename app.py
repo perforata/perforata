@@ -13,7 +13,7 @@ or load another pipeline.
 
 Both editor modes drive the same underlying node pipeline
 (generator -> modifiers -> decorator -> constraint ops -> export):
-* Simple   — grid + field convolution + cutouts + manufacturing.
+* Simple   — grid + cutouts + field convolution + manufacturing.
 * Advanced — a freely composable, ordered stack of modifier steps.
 """
 
@@ -164,20 +164,28 @@ def shape_spec_controls(label: str, key: str, default_shape="hexagon",
                         default_rot=0.0) -> ShapeSpec:
     with st.expander(label, expanded=True):
         shape = st.selectbox("Shape", SHAPES, key=f"{key}_shape",
-                             index=SHAPES.index(default_shape))
+                             index=SHAPES.index(default_shape),
+                             help="Polygon cut at each grid point.")
         fill = st.slider("Fill (size vs pitch)", 0.05, 1.0, 0.7, 0.05,
-                         key=f"{key}_fill")
+                         key=f"{key}_fill",
+                         help="Cutout size as a fraction of the local grid "
+                              "pitch — at 1.0 neighboring cutouts touch.")
         rot = st.slider("Rotation (deg)", -180.0, 180.0, default_rot, 5.0,
-                        key=f"{key}_rot")
+                        key=f"{key}_rot",
+                        help="Extra rotation applied to every cutout.")
         absolute = st.checkbox("Global orientation (ignore local normal)",
-                               key=f"{key}_abs")
+                               key=f"{key}_abs",
+                               help="Keep all cutouts aligned to the canvas "
+                                    "axes instead of following the local "
+                                    "grid direction (e.g. ring tangents).")
     return ShapeSpec(shape=shape, fill=fill, rotation=rot, absolute=absolute)
 
 
 def generator_controls(key: str = "gen"):
     grid_type = st.selectbox(
         "Grid type", ["Cartesian", "Hexagonal", "Concentric rings"],
-        key=f"{key}_type")
+        key=f"{key}_type",
+        help="Lattice used to place the cutout centers.")
 
     tag_mode = st.selectbox(
         "Row tagging",
@@ -191,24 +199,36 @@ def generator_controls(key: str = "gen"):
         alternate = True
     elif tag_mode.startswith("Major"):
         major_every = st.number_input("Major every N", 2, 20, 2,
-                                      key=f"{key}_majn")
+                                      key=f"{key}_majn",
+                                      help="Every Nth row/ring is tagged "
+                                           "'major' and can receive a "
+                                           "different cutout.")
 
     if grid_type == "Cartesian":
         c1, c2 = st.columns(2)
         pitch_x = c1.number_input("Pitch X", 1.0, 100.0, 10.0,
-                                  key=f"{key}_px")
+                                  key=f"{key}_px",
+                                  help="Center-to-center spacing along X.")
         pitch_y = c2.number_input("Pitch Y", 1.0, 100.0, 10.0,
-                                  key=f"{key}_py")
+                                  key=f"{key}_py",
+                                  help="Center-to-center spacing along Y.")
         c1, c2 = st.columns(2)
         width = c1.number_input("Width", 10.0, 2000.0, 200.0,
-                                key=f"{key}_w")
+                                key=f"{key}_w",
+                                help="Overall pattern width.")
         height = c2.number_input("Height", 10.0, 2000.0, 150.0,
-                                 key=f"{key}_h")
+                                 key=f"{key}_h",
+                                 help="Overall pattern height.")
         c1, c2 = st.columns(2)
         stagger = c1.slider("Row stagger (fraction of pitch)",
-                            0.0, 0.9, 0.0, 0.05, key=f"{key}_stag")
+                            0.0, 0.9, 0.0, 0.05, key=f"{key}_stag",
+                            help="Shift alternate rows sideways by this "
+                                 "fraction of the X pitch (0.5 = brick "
+                                 "bond).")
         col_stagger = c2.slider("Column stagger (fraction of pitch)",
-                                0.0, 0.9, 0.0, 0.05, key=f"{key}_cstag")
+                                0.0, 0.9, 0.0, 0.05, key=f"{key}_cstag",
+                                help="Shift alternate columns vertically "
+                                     "by this fraction of the Y pitch.")
         fit = st.checkbox(
             "Fit grid to panel (balance edge margins)",
             key=f"{key}_fit",
@@ -225,12 +245,16 @@ def generator_controls(key: str = "gen"):
             st.caption(f"Fitted pitch: {gen.pitch_x:.3f} × "
                        f"{gen.pitch_y:.3f}")
     elif grid_type == "Hexagonal":
-        pitch = st.number_input("Pitch", 1.0, 100.0, 10.0, key=f"{key}_p")
+        pitch = st.number_input("Pitch", 1.0, 100.0, 10.0, key=f"{key}_p",
+                                help="Center-to-center distance between "
+                                     "neighboring holes.")
         c1, c2 = st.columns(2)
         width = c1.number_input("Width", 10.0, 2000.0, 200.0,
-                                key=f"{key}_w")
+                                key=f"{key}_w",
+                                help="Overall pattern width.")
         height = c2.number_input("Height", 10.0, 2000.0, 150.0,
-                                 key=f"{key}_h")
+                                 key=f"{key}_h",
+                                 help="Overall pattern height.")
         fit = st.checkbox(
             "Fit grid to panel (balance edge margins)",
             key=f"{key}_fit",
@@ -245,23 +269,40 @@ def generator_controls(key: str = "gen"):
                        f"{gen.pitch_y:.3f} (rows)")
     else:
         c1, c2 = st.columns(2)
-        rings = c1.number_input("Rings", 1, 60, 15, key=f"{key}_r")
+        rings = c1.number_input("Rings", 1, 60, 15, key=f"{key}_r",
+                                help="Number of concentric rings.")
         r0 = c2.number_input("Inner radius r0", 0.1, 200.0, 10.0,
-                             key=f"{key}_r0")
+                             key=f"{key}_r0",
+                             help="Radius of the innermost ring.")
         c1, c2 = st.columns(2)
         mode = c1.selectbox("Spacing", ["exponential", "quadratic", "linear"],
-                            key=f"{key}_mode")
+                            key=f"{key}_mode",
+                            help="How the gap between successive rings "
+                                 "grows with radius.")
         factor = c2.number_input("Factor", 0.01, 20.0, 1.15,
-                                 key=f"{key}_f")
+                                 key=f"{key}_f",
+                                 help="Growth factor for the ring spacing "
+                                      "(larger = rings spread apart "
+                                      "faster).")
         c1, c2, c3 = st.columns(3)
         twist = c1.number_input("Twist (deg/ring)", -90.0, 90.0, 0.0,
-                                key=f"{key}_tw")
+                                key=f"{key}_tw",
+                                help="Rotate each successive ring by this "
+                                     "many degrees — creates spiral arms.")
         spokes = c2.number_input("Spokes (0=auto)", 0, 128, 0,
-                                 key=f"{key}_sp")
+                                 key=f"{key}_sp",
+                                 help="Fixed number of points per ring; "
+                                      "0 picks a count that keeps spacing "
+                                      "roughly even.")
         stagger = c3.number_input("Stagger", 0.0, 1.0, 0.0,
-                                  key=f"{key}_st")
+                                  key=f"{key}_st",
+                                  help="Rotate alternate rings by this "
+                                       "fraction of a spoke step so points "
+                                       "interleave.")
         invert = st.checkbox("Invert density (dense outside)",
-                             key=f"{key}_inv")
+                             key=f"{key}_inv",
+                             help="Flip the spacing profile so rings crowd "
+                                  "toward the rim instead of the center.")
         gen = ConcentricRings(rings=int(rings), r0=r0, factor=factor,
                               mode=mode, twist=twist, spokes=int(spokes),
                               stagger=stagger, invert=invert,
@@ -275,7 +316,10 @@ def field_source_controls(key: str):
                           ["Shape gradient", "Text / letter",
                            "Uploaded image", "Linear gradient",
                            "Radial gradient", "Expression"],
-                          key=f"{key}_src")
+                          key=f"{key}_src",
+                          help="What generates the 0..1 driving field: a "
+                               "geometric gradient, rendered text, an "
+                               "uploaded image, or a math expression.")
     field = _field_source_inner(source, key)
     if field is None:
         return None
@@ -296,7 +340,9 @@ def _field_source_inner(source: str, key: str):
         text = c1.text_input("Text", "A", key=f"{key}_txt",
                              help="A letter, monogram, or short word "
                                   "rendered as the modulation field.")
-        bold = c2.checkbox("Bold", value=True, key=f"{key}_txtbold")
+        bold = c2.checkbox("Bold", value=True, key=f"{key}_txtbold",
+                           help="Render the text with a heavier font "
+                                "weight.")
         blur = st.slider("Edge softness (blur)", 0.0, 0.10, 0.0, 0.005,
                          key=f"{key}_txtblur",
                          help="0 = hard glyph edge (cutout sizes step at "
@@ -316,7 +362,9 @@ def _field_source_inner(source: str, key: str):
         c1, c2 = st.columns(2)
         shape = c1.selectbox("Gradient shape",
                              ["circle", "square", "hexagon"],
-                             key=f"{key}_gshape")
+                             key=f"{key}_gshape",
+                             help="Contour shape the gradient radiates "
+                                  "from.")
         falloff = c2.selectbox("Falloff",
                                ["exponential", "linear", "quadratic",
                                 "gaussian", "sphere"],
@@ -327,31 +375,48 @@ def _field_source_inner(source: str, key: str):
         k = 3.0
         if falloff in ("exponential", "gaussian"):
             k = st.slider("Steepness", 0.5, 10.0, 3.0, 0.5,
-                          key=f"{key}_gk")
+                          key=f"{key}_gk",
+                          help="How sharply the gradient falls off — "
+                               "higher = a tighter hot spot.")
         inv = st.checkbox("Strong at center", value=True,
-                          key=f"{key}_ginv")
+                          key=f"{key}_ginv",
+                          help="On: field peaks at the middle and fades "
+                               "outward. Off: strongest at the rim.")
         return ShapeGradient(shape=shape, falloff=falloff, k=k, invert=inv)
     if source == "Uploaded image":
         up = st.file_uploader("Image (logo / letter)",
                               type=["png", "jpg", "jpeg", "bmp", "gif"],
-                              key=f"{key}_img")
+                              key=f"{key}_img",
+                              help="Image brightness becomes the field — "
+                                   "high-contrast logos and glyphs work "
+                                   "best.")
         if up is None:
             st.info("Upload an image to enable this step. "
                     "(Images are not restored from saved presets.)")
             return None
         from PIL import Image
         invert = st.checkbox("Invert (dark ink = strong effect)",
-                             value=True, key=f"{key}_imginv")
+                             value=True, key=f"{key}_imginv",
+                             help="On: dark pixels drive the effect (good "
+                                  "for black-on-white artwork). Off: "
+                                  "bright pixels drive it.")
         return ImageField(Image.open(up), invert=invert)
     if source == "Linear gradient":
         angle = st.slider("Gradient angle (deg)", 0.0, 360.0, 0.0, 15.0,
-                          key=f"{key}_ang")
+                          key=f"{key}_ang",
+                          help="Direction the ramp runs: 0° = left to "
+                               "right, 90° = bottom to top.")
         return LinearGradient(angle_deg=angle)
     if source == "Radial gradient":
-        inv = st.checkbox("Bright center", value=True, key=f"{key}_radinv")
+        inv = st.checkbox("Bright center", value=True, key=f"{key}_radinv",
+                          help="On: field peaks at the middle and fades "
+                               "outward. Off: strongest at the rim.")
         return RadialGradient(invert=inv)
     expr = st.text_input("Expression of u, v (0..1)",
-                         "0.5 + 0.5*sin(6.283*u)", key=f"{key}_expr")
+                         "0.5 + 0.5*sin(6.283*u)", key=f"{key}_expr",
+                         help="Python-style math in u, v (canvas coords, "
+                              "0..1) returning field strength — sin, cos, "
+                              "exp, sqrt, abs, min, max are available.")
     try:
         return Expression(expr)
     except SyntaxError:
@@ -370,14 +435,21 @@ def modulate_response_controls(key: str, wide: bool = False):
     c1, c2 = st.columns(2)
     if wide:
         lo = c1.number_input("Min effect (field=0)", -10.0, 10.0, 0.15,
-                             key=f"{key}_lo")
+                             key=f"{key}_lo",
+                             help="Value applied where the field is 0 "
+                                  "(weakest).")
         hi = c2.number_input("Max effect (field=1)", -10.0, 10.0, 1.0,
-                             key=f"{key}_hi")
+                             key=f"{key}_hi",
+                             help="Value applied where the field is 1 "
+                                  "(strongest).")
     else:
         lo = c1.slider("Min effect", 0.0, 1.0, 0.15, 0.05,
-                       key=f"{key}_lo")
+                       key=f"{key}_lo",
+                       help="Scale applied where the field is weakest — "
+                            "0 shrinks those cutouts to nothing.")
         hi = c2.slider("Max effect", 0.0, 2.0, 1.0, 0.05,
-                       key=f"{key}_hi")
+                       key=f"{key}_hi",
+                       help="Scale applied where the field is strongest.")
     c1, c2 = st.columns(2)
     curve = c1.selectbox("Curve",
                          ["linear", "quadratic", "exponential",
@@ -389,7 +461,9 @@ def modulate_response_controls(key: str, wide: bool = False):
     k = 3.0
     if curve in ("exponential", "gaussian"):
         k = c2.slider("Steepness", 0.5, 10.0, 3.0, 0.5,
-                      key=f"{key}_k")
+                      key=f"{key}_k",
+                      help="How sharply the curve bends — higher = a "
+                           "more abrupt transition.")
     return lo, hi, curve, k
 
 
@@ -413,21 +487,28 @@ def rules_controls(alternate: bool, major_every: int, key: str = "rules"):
 
 
 def crop_controls(key: str = "mfg_crop"):
-    enabled = st.checkbox("Crop to panel boundary", key=f"{key}_on")
+    enabled = st.checkbox("Crop to panel boundary", key=f"{key}_on",
+                          help="Clip the pattern to a physical panel "
+                               "outline (rectangle or circle).")
     if not enabled:
         return None
     kind = st.selectbox("Boundary", ["Rectangle", "Circle"],
-                        key=f"{key}_kind")
+                        key=f"{key}_kind",
+                        help="Shape of the panel the pattern is cut "
+                             "from.")
     if kind == "Rectangle":
         c1, c2 = st.columns(2)
         w = c1.number_input("Panel width", 10.0, 3000.0, 200.0,
-                            key=f"{key}_w")
+                            key=f"{key}_w",
+                            help="Physical panel width.")
         h = c2.number_input("Panel height", 10.0, 3000.0, 150.0,
-                            key=f"{key}_h")
+                            key=f"{key}_h",
+                            help="Physical panel height.")
         boundary = Boundary.rect(w, h)
     else:
         d = st.number_input("Panel diameter", 10.0, 3000.0, 120.0,
-                            key=f"{key}_d")
+                            key=f"{key}_d",
+                            help="Physical panel diameter.")
         boundary = Boundary.circle(d)
     mode = st.selectbox(
         "Edge handling", ["cull", "slice", "center"], key=f"{key}_mode",
@@ -439,18 +520,28 @@ def crop_controls(key: str = "mfg_crop"):
         help="Keep at least this much solid material between every "
              "cutout and the panel edge.")
     outline = st.checkbox("Include panel outline in export", value=True,
-                          key=f"{key}_out")
+                          key=f"{key}_out",
+                          help="Add the panel boundary as a cut line in "
+                               "the exported DXF/SVG.")
     return Crop(boundary, mode=mode, margin=margin, include_outline=outline)
 
 
 def manufacturing_controls(key: str = "mfg"):
     crop = crop_controls(key=f"{key}_crop")
     min_hole = st.number_input("Min hole size (0=off)", 0.0, 50.0, 0.0,
-                               key=f"{key}_minh")
+                               key=f"{key}_minh",
+                               help="Drop cutouts smaller than your "
+                                    "process can cut cleanly.")
     min_wall = st.number_input("Min wall thickness (0=off)", 0.0, 50.0, 0.0,
-                               key=f"{key}_minw")
+                               key=f"{key}_minw",
+                               help="Shrink cutouts as needed so at least "
+                                    "this much material remains between "
+                                    "neighbors.")
     target_d = st.number_input("Scale to exact size (0=off)",
-                               0.0, 3000.0, 0.0, key=f"{key}_fit")
+                               0.0, 3000.0, 0.0, key=f"{key}_fit",
+                               help="Uniformly rescale the finished "
+                                    "pattern so its largest dimension "
+                                    "equals this value.")
     return crop, min_hole, min_wall, target_d
 
 
@@ -479,35 +570,57 @@ def step_controls(idx: int, step_type: str):
     node (or None if the step is incomplete)."""
     key = f"step{idx}"
     if step_type == "Rotate":
-        deg = st.slider("Degrees", -180.0, 180.0, 0.0, 5.0, key=f"{key}_deg")
+        deg = st.slider("Degrees", -180.0, 180.0, 0.0, 5.0, key=f"{key}_deg",
+                        help="Rotate all grid points about the pattern "
+                             "center.")
         return Affine.rotation(deg)
     if step_type == "Scale":
         c1, c2 = st.columns(2)
-        sx = c1.number_input("Scale X", 0.05, 20.0, 1.0, key=f"{key}_sx")
-        sy = c2.number_input("Scale Y", 0.05, 20.0, 1.0, key=f"{key}_sy")
+        sx = c1.number_input("Scale X", 0.05, 20.0, 1.0, key=f"{key}_sx",
+                             help="Stretch factor along X (1 = "
+                                  "unchanged).")
+        sy = c2.number_input("Scale Y", 0.05, 20.0, 1.0, key=f"{key}_sy",
+                             help="Stretch factor along Y (1 = "
+                                  "unchanged).")
         return Affine.scaling(sx, sy)
     if step_type == "Shear":
         c1, c2 = st.columns(2)
-        shx = c1.number_input("Shear X", -3.0, 3.0, 0.0, key=f"{key}_shx")
-        shy = c2.number_input("Shear Y", -3.0, 3.0, 0.0, key=f"{key}_shy")
+        shx = c1.number_input("Shear X", -3.0, 3.0, 0.0, key=f"{key}_shx",
+                              help="Slant X by this multiple of Y — rows "
+                                   "lean sideways.")
+        shy = c2.number_input("Shear Y", -3.0, 3.0, 0.0, key=f"{key}_shy",
+                              help="Slant Y by this multiple of X — "
+                                   "columns lean up/down.")
         return Affine.shear(shx, shy)
     if step_type == "Translate":
         c1, c2 = st.columns(2)
-        dx = c1.number_input("dX", -1000.0, 1000.0, 0.0, key=f"{key}_dx")
-        dy = c2.number_input("dY", -1000.0, 1000.0, 0.0, key=f"{key}_dy")
+        dx = c1.number_input("dX", -1000.0, 1000.0, 0.0, key=f"{key}_dx",
+                             help="Shift the pattern along X.")
+        dy = c2.number_input("dY", -1000.0, 1000.0, 0.0, key=f"{key}_dy",
+                             help="Shift the pattern along Y.")
         return Affine.translation(dx, dy)
     if step_type == "Polar warp":
         r_off = st.number_input("Radius offset", 0.0, 1000.0, 100.0,
-                                key=f"{key}_roff")
+                                key=f"{key}_roff",
+                                help="Bend the grid around a circle of "
+                                     "this radius — larger = gentler "
+                                     "curvature.")
         return PolarWarp(r_offset=r_off)
     if step_type == "Field modulate":
         field = field_source_controls(key)
         if field is None:
             return None
         attr = st.selectbox("Attribute", ["scale", "angle", "size"],
-                            key=f"{key}_attr")
+                            key=f"{key}_attr",
+                            help="Point attribute the field drives: scale "
+                                 "(relative cutout size), angle (cutout "
+                                 "rotation, in turns), or size (absolute "
+                                 "cutout size).")
         mode = st.selectbox("Mode", ["multiply", "set", "add"],
-                            key=f"{key}_mode")
+                            key=f"{key}_mode",
+                            help="How the field value combines with the "
+                                 "existing attribute: multiply it, "
+                                 "replace it, or add to it.")
         lo, hi, curve, k = modulate_response_controls(key, wide=True)
         return FieldModulate(attr, field, lo=lo, hi=hi, mode=mode,
                              curve=curve, k=k)
@@ -516,20 +629,31 @@ def step_controls(idx: int, step_type: str):
         if field is None:
             return None
         strength = st.slider("Strength", 0.0, 1.0, 1.0, 0.05,
-                             key=f"{key}_str")
-        axes = st.selectbox("Axes", ["both", "x", "y"], key=f"{key}_axes")
+                             key=f"{key}_str",
+                             help="How far points migrate toward "
+                                  "field-strong regions (0 = no warp).")
+        axes = st.selectbox("Axes", ["both", "x", "y"], key=f"{key}_axes",
+                            help="Restrict the migration to one axis or "
+                                 "allow both.")
         return DensityWarp(field, strength=strength, axes=axes)
     if step_type == "Attribute filter":
         attr = st.selectbox("Attribute", ["scale", "size"],
-                            key=f"{key}_attr")
+                            key=f"{key}_attr",
+                            help="Point attribute the keep-range applies "
+                                 "to.")
         c1, c2 = st.columns(2)
-        lo = c1.number_input("Min", -1000.0, 1000.0, 0.1, key=f"{key}_lo")
+        lo = c1.number_input("Min", -1000.0, 1000.0, 0.1, key=f"{key}_lo",
+                             help="Drop points with a value below this.")
         hi = c2.number_input("Max", -1000.0, 1000.0, 1000.0,
-                             key=f"{key}_hi")
+                             key=f"{key}_hi",
+                             help="Drop points with a value above this.")
         return AttributeFilter(attr, lo=lo, hi=hi)
     if step_type == "Tag filter":
         tags = st.text_input("Tags to keep (comma-separated)",
-                             "default", key=f"{key}_tags")
+                             "default", key=f"{key}_tags",
+                             help="Keep only points carrying one of these "
+                                  "row/ring tags (e.g. even, odd, major, "
+                                  "minor, default).")
         return TagFilter(*[t.strip() for t in tags.split(",") if t.strip()])
     return None
 
@@ -542,8 +666,10 @@ def advanced_stack_controls():
 
     c1, c2 = st.columns([3, 1])
     new_type = c1.selectbox("Add step", STEP_TYPES,
-                            label_visibility="collapsed")
-    if c2.button("➕ Add", use_container_width=True):
+                            label_visibility="collapsed",
+                            help="Modifier type to append to the stack.")
+    if c2.button("➕ Add", use_container_width=True,
+                 help="Append the selected step to the end of the stack."):
         st.session_state.adv_steps = st.session_state.adv_steps + [new_type]
         st.rerun()
 
@@ -553,18 +679,21 @@ def advanced_stack_controls():
         with st.expander(f"{i + 1} · {step_type}", expanded=True):
             node = step_controls(i, step_type)
             cc1, cc2, cc3 = st.columns(3)
-            if cc1.button("⬆", key=f"up{i}", disabled=(i == 0)):
+            if cc1.button("⬆", key=f"up{i}", disabled=(i == 0),
+                          help="Move this step earlier in the stack."):
                 steps = list(st.session_state.adv_steps)
                 steps[i - 1], steps[i] = steps[i], steps[i - 1]
                 st.session_state.adv_steps = steps
                 st.rerun()
             if cc2.button("⬇", key=f"dn{i}",
-                          disabled=(i == len(st.session_state.adv_steps) - 1)):
+                          disabled=(i == len(st.session_state.adv_steps) - 1),
+                          help="Move this step later in the stack."):
                 steps = list(st.session_state.adv_steps)
                 steps[i + 1], steps[i] = steps[i], steps[i + 1]
                 st.session_state.adv_steps = steps
                 st.rerun()
-            if cc3.button("✕", key=f"rm{i}"):
+            if cc3.button("✕", key=f"rm{i}",
+                          help="Remove this step from the stack."):
                 remove = i
         if node is not None:
             modifiers.append(node)
@@ -594,8 +723,12 @@ with st.sidebar:
         # Load a factory or user pipeline
         factory_names = [f"[factory] {n}" for n in presets.list_factory()]
         user_names = [f"[mine] {n}" for n in presets.list_presets()]
-        pick = st.selectbox("Load pipeline", factory_names + user_names)
-        if st.button("📂 Load", use_container_width=True):
+        pick = st.selectbox("Load pipeline", factory_names + user_names,
+                            help="Pick a built-in [factory] or saved "
+                                 "[mine] pipeline to load.")
+        if st.button("📂 Load", use_container_width=True,
+                     help="Load the selected pipeline, replacing the "
+                          "current settings."):
             if pick.startswith("[factory] "):
                 chosen = pick.removeprefix("[factory] ")
                 payload = presets.load_factory(chosen)
@@ -607,33 +740,50 @@ with st.sidebar:
         st.divider()
 
         # Save / revert the current pipeline
-        save_name = st.text_input("Save as", value=name)
+        save_name = st.text_input("Save as", value=name,
+                                  help="Name to save the current pipeline "
+                                       "under (stored locally in "
+                                       "presets/user/).")
         c1, c2 = st.columns(2)
         if c1.button("💾 Save", use_container_width=True,
-                     disabled=not save_name.strip()):
+                     disabled=not save_name.strip(),
+                     help="Save the current settings as a named "
+                          "pipeline."):
             snap = snapshot_state()
             presets.save(save_name.strip(), {"ui_state": snap})
             st.session_state["pipeline_name"] = save_name.strip()
             st.session_state["baseline"] = snap
             st.rerun()
         if c2.button("↩ Revert", use_container_width=True,
-                     disabled=not dirty):
+                     disabled=not dirty,
+                     help="Discard edits and restore the pipeline as it "
+                          "was loaded."):
             stage_load(st.session_state["baseline"] or {}, name)
 
         c1, c2 = st.columns(2)
         c1.download_button(
             "🔗 Share .pfp", data=presets.dumps({"ui_state": snapshot_state()}),
             file_name=f"{(save_name.strip() or 'pattern')}.pfp",
-            mime="application/octet-stream", use_container_width=True)
-        if user_names and c2.button("🗑 Delete saved", use_container_width=True):
+            mime="application/octet-stream", use_container_width=True,
+            help="Download the current pipeline as a portable .pfp file "
+                 "you can share or import elsewhere.")
+        if user_names and c2.button("🗑 Delete saved",
+                                    use_container_width=True,
+                                    help="Delete the saved pipeline "
+                                         "selected in 'Load pipeline' "
+                                         "above."):
             if pick.startswith("[mine] "):
                 presets.delete(pick.removeprefix("[mine] "))
                 st.rerun()
             else:
                 st.warning("Select one of your saved pipelines to delete.")
 
-        up = st.file_uploader("Import a shared .pfp", type=["pfp"])
-        if up is not None and st.button("⤵ Import", use_container_width=True):
+        up = st.file_uploader("Import a shared .pfp", type=["pfp"],
+                              help="Load a pipeline file someone shared "
+                                   "with you.")
+        if up is not None and st.button("⤵ Import", use_container_width=True,
+                                        help="Load the uploaded .pfp as "
+                                             "the current pipeline."):
             try:
                 payload = presets.loads(up.read())
                 stage_load(payload["ui_state"], up.name.removesuffix(".pfp"))
@@ -647,14 +797,20 @@ with st.sidebar:
 
     st.divider()
     ui_mode = st.radio("Mode", ["Simple", "Advanced"], horizontal=True,
-                       key="mode_radio")
+                       key="mode_radio",
+                       help="Simple: guided controls (field convolution + "
+                            "transform). Advanced: a freely ordered stack "
+                            "of modifier steps.")
 
     # --- Editor ----------------------------------------------------------
     st.header("1 · Grid")
     gen, alternate, major_every = generator_controls()
 
+    st.header("2 · Cutouts")
+    rules = rules_controls(alternate, major_every)
+
     if ui_mode == "Simple":
-        st.header("2 · Field convolution")
+        st.header("3 · Field convolution")
         modifiers = []
         if st.checkbox("Convolve a field with the grid", key="fconv_on",
                        help="Drive cutout size and/or grid spacing from "
@@ -673,7 +829,10 @@ with st.sidebar:
                 if target in ("Grid spacing (density)", "Both"):
                     strength = st.slider("Density strength",
                                          0.0, 1.0, 0.8, 0.05,
-                                         key="fconv_dstr")
+                                         key="fconv_dstr",
+                                         help="How far grid points migrate "
+                                              "toward field-strong regions "
+                                              "(0 = no change).")
                     modifiers.append(DensityWarp(field, strength=strength,
                                                  region="symmetric"))
                 if target in ("Cutout size", "Both"):
@@ -687,27 +846,35 @@ with st.sidebar:
                                                    curve=curve, k=k,
                                                    region="symmetric"))
                     drop = st.slider("Drop holes scaled below",
-                                     0.0, 0.5, 0.1, 0.01, key="fconv_drop")
+                                     0.0, 0.5, 0.1, 0.01, key="fconv_drop",
+                                     help="Remove cutouts whose field-"
+                                          "driven scale falls below this — "
+                                          "cleans up specks in weak-field "
+                                          "areas.")
                     if drop > 0:
                         modifiers.append(AttributeFilter("scale", lo=drop))
 
-        st.header("3 · Transform")
+        st.header("4 · Transform")
         rot_all = st.slider("Rotate pattern (deg)", -180.0, 180.0, 0.0, 5.0,
-                            key="xform_rot")
+                            key="xform_rot",
+                            help="Rotate the whole pattern about its "
+                                 "center.")
         if abs(rot_all) > 1e-9:
             modifiers.insert(0, Affine.rotation(rot_all))
         if st.checkbox("Polar warp (bend grid into a circle)",
-                       key="xform_polar"):
+                       key="xform_polar",
+                       help="Wrap the flat grid around a circle — rows "
+                            "become rings."):
             r_offset = st.number_input("Warp radius offset",
-                                       0.0, 500.0, 100.0, key="xform_roff")
+                                       0.0, 500.0, 100.0, key="xform_roff",
+                                       help="Radius of the circle the grid "
+                                            "is bent around — larger = "
+                                            "gentler curvature.")
             modifiers.insert(0, PolarWarp(r_offset=r_offset))
     else:
-        st.header("2 · Modifier stack")
+        st.header("3 · Modifier stack")
         st.caption("Steps run top to bottom on the grid points.")
         modifiers = advanced_stack_controls()
-
-    st.header("4 · Cutouts" if ui_mode == "Simple" else "3 · Cutouts")
-    rules = rules_controls(alternate, major_every)
 
     st.header("5 · Manufacturing" if ui_mode == "Simple"
               else "4 · Manufacturing")
@@ -734,7 +901,8 @@ if st.session_state.get("show_demo"):
         st.image(png, use_container_width=True)
         st.download_button("⬇ Download gallery PNG", data=png,
                            file_name="perforata-demo-gallery.png",
-                           mime="image/png", key="demo_dl")
+                           mime="image/png", key="demo_dl",
+                           help="Save the preset matrix as a PNG image.")
 
 # --- Preview ------------------------------------------------------------
 col_plot, col_info = st.columns([3, 1])
@@ -743,7 +911,9 @@ cuts = cutouts_only(shapes)
 with col_plot:
     # By default the preview shows cutouts only; the panel outline is
     # still included in the export when requested.
-    show_outline = st.checkbox("Show panel outline in preview", value=False)
+    show_outline = st.checkbox("Show panel outline in preview", value=False,
+                               help="Draw the panel boundary in the "
+                                    "preview (exports are unaffected).")
     fig = plot_shapes(shapes if show_outline else cuts)
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
@@ -778,12 +948,16 @@ with col_info:
     st.download_button("⬇ Download DXF", data=dxf_bytes,
                        file_name="perforata.dxf",
                        mime="application/dxf",
-                       use_container_width=True)
+                       use_container_width=True,
+                       help="CAD-ready cut file for laser / CNC "
+                            "workflows.")
     svg_bytes = SVGExporter().run(shapes)
     st.download_button("⬇ Download SVG", data=svg_bytes,
                        file_name="perforata.svg",
                        mime="image/svg+xml",
-                       use_container_width=True)
+                       use_container_width=True,
+                       help="Vector file for browsers, Inkscape, or "
+                            "Illustrator.")
     config_text = describe_pipeline(gen, modifiers, rules, crop,
                                     min_hole, min_wall, target_d,
                                     cloud=cloud, cuts=cuts)
@@ -796,7 +970,9 @@ with col_info:
                             "and bug reports.")
 
     st.divider()
-    if st.checkbox("Show grid points (debug)"):
+    if st.checkbox("Show grid points (debug)",
+                   help="Plot the raw grid points after modifiers, "
+                        "before cutouts are instanced."):
         fig2 = plot_pointcloud(cloud)
         st.pyplot(fig2, use_container_width=True)
         plt.close(fig2)
