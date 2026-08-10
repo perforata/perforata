@@ -276,6 +276,21 @@ def field_source_controls(key: str):
                            "Uploaded image", "Linear gradient",
                            "Radial gradient", "Expression"],
                           key=f"{key}_src")
+    field = _field_source_inner(source, key)
+    if field is None:
+        return None
+    fscale = st.slider(
+        "Field scale (vs canvas)", 0.25, 4.0, 1.0, 0.05,
+        key=f"{key}_fscale",
+        help="Zoom the driving geometry relative to the pattern: >1 "
+             "magnifies it (features span more of the canvas), <1 "
+             "shrinks it toward the center.")
+    if abs(fscale - 1.0) > 1e-9:
+        field = field.scaled(fscale)
+    return field
+
+
+def _field_source_inner(source: str, key: str):
     if source == "Text / letter":
         c1, c2 = st.columns([2, 1])
         text = c1.text_input("Text", "A", key=f"{key}_txt",
@@ -342,6 +357,40 @@ def field_source_controls(key: str):
     except SyntaxError:
         st.error("Invalid expression")
         return None
+
+
+def modulate_response_controls(key: str, wide: bool = False):
+    """Shared response controls for every field-modulate flavor:
+    min effect, max effect, curve, and steepness.
+
+    ``wide`` switches min/max to free-range number inputs (used by the
+    advanced step, where "add"/"set" modes on angle need values beyond
+    0..2); the simple mode keeps bounded sliders.
+    """
+    c1, c2 = st.columns(2)
+    if wide:
+        lo = c1.number_input("Min effect (field=0)", -10.0, 10.0, 0.15,
+                             key=f"{key}_lo")
+        hi = c2.number_input("Max effect (field=1)", -10.0, 10.0, 1.0,
+                             key=f"{key}_hi")
+    else:
+        lo = c1.slider("Min effect", 0.0, 1.0, 0.15, 0.05,
+                       key=f"{key}_lo")
+        hi = c2.slider("Max effect", 0.0, 2.0, 1.0, 0.05,
+                       key=f"{key}_hi")
+    c1, c2 = st.columns(2)
+    curve = c1.selectbox("Curve",
+                         ["linear", "quadratic", "exponential",
+                          "gaussian", "sphere"],
+                         key=f"{key}_curve",
+                         help="Response curve applied to the sampled "
+                              "field value before it drives the "
+                              "attribute — works with any field source.")
+    k = 3.0
+    if curve in ("exponential", "gaussian"):
+        k = c2.slider("Steepness", 0.5, 10.0, 3.0, 0.5,
+                      key=f"{key}_k")
+    return lo, hi, curve, k
 
 
 def rules_controls(alternate: bool, major_every: int, key: str = "rules"):
@@ -459,12 +508,9 @@ def step_controls(idx: int, step_type: str):
                             key=f"{key}_attr")
         mode = st.selectbox("Mode", ["multiply", "set", "add"],
                             key=f"{key}_mode")
-        c1, c2 = st.columns(2)
-        lo = c1.number_input("Value at field=0", -10.0, 10.0, 0.15,
-                             key=f"{key}_lo")
-        hi = c2.number_input("Value at field=1", -10.0, 10.0, 1.0,
-                             key=f"{key}_hi")
-        return FieldModulate(attr, field, lo=lo, hi=hi, mode=mode)
+        lo, hi, curve, k = modulate_response_controls(key, wide=True)
+        return FieldModulate(attr, field, lo=lo, hi=hi, mode=mode,
+                             curve=curve, k=k)
     if step_type == "Density warp":
         field = field_source_controls(key)
         if field is None:
@@ -631,17 +677,14 @@ with st.sidebar:
                     modifiers.append(DensityWarp(field, strength=strength,
                                                  region="symmetric"))
                 if target in ("Cutout size", "Both"):
-                    c1, c2 = st.columns(2)
-                    lo = c1.slider("Min effect", 0.0, 1.0, 0.15, 0.05,
-                                   key="fconv_lo")
-                    hi = c2.slider("Max effect", 0.0, 2.0, 1.0, 0.05,
-                                   key="fconv_hi")
+                    lo, hi, curve, k = modulate_response_controls("fconv")
                     # All generators are origin-centered; the symmetric
                     # region keeps the field centered on the pattern even
                     # when the cloud's raw bbox is slightly lopsided
                     # (radial grids rarely have a point at exactly 180°).
                     modifiers.append(FieldModulate("scale", field,
                                                    lo=lo, hi=hi,
+                                                   curve=curve, k=k,
                                                    region="symmetric"))
                     drop = st.slider("Drop holes scaled below",
                                      0.0, 0.5, 0.1, 0.01, key="fconv_drop")

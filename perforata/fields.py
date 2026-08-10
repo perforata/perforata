@@ -60,6 +60,17 @@ class Field(Node):
         """Nonlinear response curve: field ** g."""
         return _Gamma(self, g)
 
+    def scaled(self, s: float, center=(0.5, 0.5)) -> "Field":
+        """Zoom the field about a uv-space center point.
+
+        ``s > 1`` magnifies the driving geometry relative to the canvas
+        (its features span a larger fraction of the pattern); ``s < 1``
+        shrinks it toward the center. Samples that fall outside the
+        original unit square take whatever the field returns there
+        (gradients clamp; images letterbox with their ``bg``).
+        """
+        return _Scaled(self, s, center)
+
 
 def _coerce(value) -> "Field":
     if isinstance(value, Field):
@@ -101,6 +112,20 @@ class _Gamma(Field):
 
     def sample(self, uv):
         return np.clip(self.inner.sample(uv), 0.0, None) ** self.g
+
+
+class _Scaled(Field):
+    """Zoom a field about a uv-space center (see :meth:`Field.scaled`)."""
+
+    def __init__(self, inner: Field, s: float, center=(0.5, 0.5)):
+        super().__init__(s=s, center=center)
+        self.inner = inner
+        self.s = float(s)
+        self.center = np.asarray(center, dtype=float).reshape(2)
+
+    def sample(self, uv):
+        s = max(self.s, 1e-9)
+        return self.inner.sample((uv - self.center) / s + self.center)
 
 
 class LinearGradient(Field):

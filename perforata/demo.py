@@ -33,6 +33,16 @@ from .render import plot_shapes
 
 def _field(state: dict, key: str = "fconv"):
     """Build a Field from UI state (mirrors app.field_source_controls)."""
+    field = _field_source(state, key)
+    if field is None:
+        return None
+    fscale = state.get(f"{key}_fscale", 1.0)
+    if abs(fscale - 1.0) > 1e-9:
+        field = field.scaled(fscale)
+    return field
+
+
+def _field_source(state: dict, key: str):
     src = state.get(f"{key}_src", "Shape gradient")
     if src == "Text / letter":
         text = state.get(f"{key}_txt", "A").strip()
@@ -113,6 +123,8 @@ def _modifiers(state: dict) -> list:
                     "scale", field,
                     lo=state.get("fconv_lo", 0.15),
                     hi=state.get("fconv_hi", 1.0),
+                    curve=state.get("fconv_curve", "linear"),
+                    k=state.get("fconv_k", 3.0),
                     region="symmetric"))
                 drop = state.get("fconv_drop", 0.1)
                 if drop > 0:

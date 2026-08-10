@@ -20,7 +20,7 @@ import numpy as np
 
 from .graph import Node
 from .pointcloud import PointCloud
-from .fields import Field
+from .fields import Field, apply_falloff
 
 
 # ----------------------------------------------------------------------
@@ -146,11 +146,21 @@ class FieldModulate(Node):
     The cloud's bounding box (or ``region="symmetric"`` for an
     origin-centered box, or an explicit ``region=(xmin, ymin, xmax,
     ymax)``) is mapped to the field's unit square; the sampled value
-    ``f`` in [0, 1] then updates the attribute:
+    ``f`` in [0, 1] is passed through a response curve (see
+    :func:`~perforata.fields.apply_falloff`) and then updates the
+    attribute:
 
-        mode="multiply":  attr *= lo + (hi - lo) * f
-        mode="set":       attr  = lo + (hi - lo) * f
-        mode="add":       attr += lo + (hi - lo) * f
+        mode="multiply":  attr *= lo + (hi - lo) * curve(f)
+        mode="set":       attr  = lo + (hi - lo) * curve(f)
+        mode="add":       attr += lo + (hi - lo) * curve(f)
+
+    curve : response curve applied to the sampled field value —
+        "linear" (identity, default), "quadratic", "exponential",
+        "gaussian", or "sphere". This works with *any* field source,
+        so gradients, text, and images all share the same min effect /
+        max effect / curve / steepness controls.
+    k     : steepness of the nonlinear curves ("exponential",
+        "gaussian"); ignored by the others.
 
     Typical uses:
         FieldModulate("scale", ImageField("logo.png", invert=True))
@@ -163,12 +173,16 @@ class FieldModulate(Node):
     """
 
     def __init__(self, attr: str, field: Field, lo: float = 0.0,
-                 hi: float = 1.0, mode: str = "multiply", region=None):
-        super().__init__(attr=attr, lo=lo, hi=hi, mode=mode, region=region)
+                 hi: float = 1.0, mode: str = "multiply",
+                 curve: str = "linear", k: float = 3.0, region=None):
+        super().__init__(attr=attr, lo=lo, hi=hi, mode=mode,
+                         curve=curve, k=k, region=region)
         self.attr = attr
         self.field = field
         self.lo, self.hi = float(lo), float(hi)
         self.mode = mode
+        self.curve = curve
+        self.k = float(k)
         self.region = region
 
     def run(self, cloud: PointCloud, field: Field | None = None) -> PointCloud:
@@ -182,6 +196,7 @@ class FieldModulate(Node):
 
         uv = np.stack([(cloud.x - xmin) / w, (cloud.y - ymin) / h], axis=1)
         f = np.clip(field.sample(uv), 0.0, 1.0)
+        f = apply_falloff(f, self.curve, self.k)
         value = self.lo + (self.hi - self.lo) * f
 
         out = cloud.copy()
