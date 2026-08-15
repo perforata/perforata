@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-15
+
+### Security
+- **Path injection (CWE-22) in user presets**: Fixed an issue where saving, loading, or deleting a user preset by name did not properly validate that the resulting path remained inside the `presets/user/` directory. An attacker could craft names like `../../victim.txt` or absolute paths to read, overwrite, or delete arbitrary files. `presets._path_for` now correctly normalizes paths and enforces containment.
+
 ## [0.4.0] - 2026-08-15
 
 ### Added
