@@ -795,15 +795,15 @@ with st.sidebar:
                 st.warning("Select one of your saved pipelines to delete.")
 
         up = st.file_uploader("Import a shared preset",
-                              type=["json", "pfp"],
-                              help="Load a pipeline file someone shared "
-                                   "with you (.json, or a legacy .pfp).")
+                              type=["json"],
+                              help="Load a pipeline JSON file someone "
+                                   "shared with you.")
         if up is not None and st.button("⤵ Import", use_container_width=True,
                                         help="Load the uploaded preset as "
                                              "the current pipeline."):
             try:
                 payload = presets.loads(up.read())
-                name_ = up.name.removesuffix(".json").removesuffix(".pfp")
+                name_ = up.name.removesuffix(".json")
                 stage_load(payload["ui_state"], name_)
             except Exception as exc:  # noqa: BLE001
                 st.error(f"Could not load preset: {exc}")
