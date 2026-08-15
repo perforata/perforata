@@ -2,13 +2,14 @@
 
 Interactive front-end for the node-graph pattern engine. Run with:
 
-    uv run streamlit run app.py
+    perforata ui            # installed wheel (needs perforata[app])
+    uv run streamlit run app.py   # repo checkout
 
 The app is organized around **pipelines**: at any moment a named pipeline
 is selected (shown at the top of the sidebar). On startup a default
 factory pipeline is loaded. Editing any control marks the pipeline as
 *modified* (●); you can save it under a name (stored in ``presets/user/``,
-git-ignored), revert to the loaded state, share it as a ``.pfp`` file,
+git-ignored), revert to the loaded state, share it as a ``.json`` preset,
 or load another pipeline.
 
 Both editor modes drive the same underlying node pipeline
@@ -776,11 +777,12 @@ with st.sidebar:
 
         c1, c2 = st.columns(2)
         c1.download_button(
-            "🔗 Share .pfp", data=presets.dumps({"ui_state": snapshot_state()}),
-            file_name=f"{(save_name.strip() or 'pattern')}.pfp",
-            mime="application/octet-stream", use_container_width=True,
-            help="Download the current pipeline as a portable .pfp file "
-                 "you can share or import elsewhere.")
+            "🔗 Share preset",
+            data=presets.dumps({"ui_state": snapshot_state()}),
+            file_name=f"{(save_name.strip() or 'pattern')}.json",
+            mime="application/json", use_container_width=True,
+            help="Download the current pipeline as a portable JSON "
+                 "preset you can share or import elsewhere.")
         if user_names and c2.button("🗑 Delete saved",
                                     use_container_width=True,
                                     help="Delete the saved pipeline "
@@ -792,15 +794,17 @@ with st.sidebar:
             else:
                 st.warning("Select one of your saved pipelines to delete.")
 
-        up = st.file_uploader("Import a shared .pfp", type=["pfp"],
+        up = st.file_uploader("Import a shared preset",
+                              type=["json", "pfp"],
                               help="Load a pipeline file someone shared "
-                                   "with you.")
+                                   "with you (.json, or a legacy .pfp).")
         if up is not None and st.button("⤵ Import", use_container_width=True,
-                                        help="Load the uploaded .pfp as "
+                                        help="Load the uploaded preset as "
                                              "the current pipeline."):
             try:
                 payload = presets.loads(up.read())
-                stage_load(payload["ui_state"], up.name.removesuffix(".pfp"))
+                name_ = up.name.removesuffix(".json").removesuffix(".pfp")
+                stage_load(payload["ui_state"], name_)
             except Exception as exc:  # noqa: BLE001
                 st.error(f"Could not load preset: {exc}")
 

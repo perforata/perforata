@@ -2,36 +2,38 @@
 
 Two tiers:
 
-* **Factory presets** — curated pipelines shipped with the repo. They are
-  defined *as code* in :mod:`perforata.factory_presets` (tracked in git,
-  reviewable in diffs, immune to pickle format drift) and registered via
-  :func:`register_factory`.
+* **Factory presets** — curated pipelines shipped with the package. They
+  are defined *as code* in :mod:`perforata.factory_presets` (tracked in
+  git, reviewable in diffs) and registered via :func:`register_factory`.
 * **User presets** — saved from the UI into ``presets/user/`` (excluded
-  from git) as ``.pfp`` files serialized with **cloudpickle**, which
-  (unlike plain pickle or JSON) handles everything our nodes contain:
+  from git) as versioned **JSON** files::
 
-  - nested ``tag_rule`` closures inside :class:`~perforata.generators.CartesianGrid`
-  - compiled code objects inside :class:`~perforata.fields.Expression`
-  - numpy image arrays inside :class:`~perforata.fields.ImageField`
-  - arbitrary composed field expressions (``0.3 + 0.7 * ImageField(...)``)
+      {"format": "perforata-preset", "v": 1,
+       "app_version": "0.3.0", "payload": {"ui_state": {...}}}
 
-``.pfp`` files can also be downloaded/imported through the UI to share
-pipelines between machines.
+  JSON presets are safe to share: loading one cannot execute code.
+
+Legacy ``.pfp`` files (cloudpickle) are still *readable* behind a
+deprecation shim — see :func:`loads` — but no longer written. Support
+will be removed in the next minor version.
 
 .. warning::
-    Pickle-based formats execute code on load. Only load ``.pfp`` files
-    from sources you trust — treat them like Python scripts.
+    Pickle-based ``.pfp`` files execute code on load. Only load ``.pfp``
+    files from sources you trust — treat them like Python scripts.
 """
 
 from __future__ import annotations
 
+import json
+import warnings
 from pathlib import Path
 from typing import Callable
 
 from . import __version__
 
 PRESET_DIR = Path("presets") / "user"
-PRESET_EXT = ".pfp"
+PRESET_EXT = ".json"
+LEGACY_EXT = ".pfp"
 
 # Bumped when the payload layout changes incompatibly.
 FORMAT_VERSION = 1
@@ -40,67 +42,107 @@ FORMAT_VERSION = 1
 def _envelope(payload) -> dict:
     return {
         "format": "perforata-preset",
-        "format_version": FORMAT_VERSION,
+        "v": FORMAT_VERSION,
         "app_version": __version__,
         "payload": payload,
     }
 
 
-def dumps(payload) -> bytes:
-    """Serialize a payload (any picklable structure of nodes/params)
-    to bytes — e.g. for a UI download/share button."""
-    import cloudpickle
-    return cloudpickle.dumps(_envelope(payload))
-
-
-def loads(data: bytes):
-    """Deserialize preset bytes back into the stored payload."""
-    import pickle
-    envelope = pickle.loads(data)  # noqa: S301 — documented trust model
+def _check_envelope(envelope) -> dict:
     if not isinstance(envelope, dict) or \
             envelope.get("format") != "perforata-preset":
         raise ValueError("not a perforata preset file")
-    if envelope.get("format_version", 0) > FORMAT_VERSION:
+    # Legacy pickled envelopes used "format_version"; JSON uses "v".
+    saved = envelope.get("v", envelope.get("format_version", 0))
+    if saved > FORMAT_VERSION:
         raise ValueError(
             f"preset was saved by a newer version "
-            f"(format {envelope['format_version']} > {FORMAT_VERSION})")
+            f"(format {saved} > {FORMAT_VERSION})")
     return envelope["payload"]
+
+
+def dumps(payload) -> bytes:
+    """Serialize a payload (a JSON-safe structure, e.g. a UI-state dict)
+    to versioned preset JSON bytes — e.g. for a UI download/share
+    button."""
+    return json.dumps(_envelope(payload), indent=2, sort_keys=True,
+                      default=repr).encode("utf-8")
+
+
+def loads(data: bytes):
+    """Deserialize preset bytes back into the stored payload.
+
+    Accepts current JSON presets, plus legacy pickled ``.pfp`` bytes
+    behind a :class:`DeprecationWarning` (to be removed in the next
+    minor version).
+    """
+    head = data.lstrip()[:1]
+    if head in (b"{", b"["):
+        return _check_envelope(json.loads(data.decode("utf-8")))
+    # Legacy cloudpickle format
+    warnings.warn(
+        "pickle-based .pfp presets are deprecated; re-save this preset "
+        "to convert it to JSON. .pfp support will be removed in the "
+        "next minor version.",
+        DeprecationWarning, stacklevel=2)
+    import pickle
+    envelope = pickle.loads(data)  # noqa: S301 — documented trust model
+    return _check_envelope(envelope)
 
 
 def _path_for(name: str, directory: Path | str | None = None) -> Path:
     directory = Path(directory) if directory else PRESET_DIR
-    name = name if name.endswith(PRESET_EXT) else name + PRESET_EXT
+    if not name.endswith((PRESET_EXT, LEGACY_EXT)):
+        name = name + PRESET_EXT
     return directory / name
 
 
 def save(name: str, payload, directory: Path | str | None = None) -> Path:
-    """Save a payload under ``presets/<name>.pfp``; returns the path."""
+    """Save a payload under ``presets/<name>.json``; returns the path."""
     path = _path_for(name, directory)
+    if path.suffix == LEGACY_EXT:
+        path = path.with_suffix(PRESET_EXT)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(dumps(payload))
     return path
 
 
 def load(name: str, directory: Path | str | None = None):
-    """Load a preset by name (or full filename) from the presets folder."""
-    return loads(_path_for(name, directory).read_bytes())
+    """Load a preset by name (or full filename) from the presets folder.
+
+    Falls back to a legacy ``.pfp`` file of the same name if no JSON
+    preset exists.
+    """
+    path = _path_for(name, directory)
+    if not path.exists() and path.suffix == PRESET_EXT:
+        legacy = path.with_suffix(LEGACY_EXT)
+        if legacy.exists():
+            path = legacy
+    return loads(path.read_bytes())
 
 
 def list_presets(directory: Path | str | None = None) -> list[str]:
-    """Names (without extension) of all stored presets, sorted."""
+    """Names (without extension) of all stored presets, sorted. Includes
+    legacy ``.pfp`` presets that have no JSON counterpart."""
     directory = Path(directory) if directory else PRESET_DIR
     if not directory.is_dir():
         return []
-    return sorted(p.stem for p in directory.glob(f"*{PRESET_EXT}"))
+    names = {p.stem for p in directory.glob(f"*{PRESET_EXT}")}
+    names |= {p.stem for p in directory.glob(f"*{LEGACY_EXT}")}
+    return sorted(names)
 
 
 def delete(name: str, directory: Path | str | None = None) -> bool:
-    """Delete a stored preset; returns True if it existed."""
+    """Delete a stored preset (JSON and/or legacy); returns True if any
+    file existed."""
     path = _path_for(name, directory)
-    if path.exists():
-        path.unlink()
-        return True
-    return False
+    deleted = False
+    for candidate in {path, path.with_suffix(PRESET_EXT),
+                      path.with_suffix(LEGACY_EXT)}:
+        if candidate.exists():
+            candidate.unlink()
+            deleted = True
+    return deleted
 
 
 # ----------------------------------------------------------------------

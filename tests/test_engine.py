@@ -437,7 +437,6 @@ def test_density_warp_compresses_toward_field():
     # Mean shifts right (points migrate toward high density)
     assert out.x.mean() > cloud.x.mean() + 1.0
     # Local size attribute shrinks on the dense (right) side
-    right = out.get("size")[np.argmax(out.x[out.x < out.x.max()])]
     sizes_sorted_by_x = out.get("size")[np.argsort(out.x)]
     assert sizes_sorted_by_x[-2] < sizes_sorted_by_x[1]
 
@@ -671,25 +670,17 @@ def test_graph_cycle_detection():
 # ----------------------------------------------------------------------
 
 def test_preset_roundtrip(tmp_path):
+    """Presets store JSON-safe UI state; a saved preset must load back
+    verbatim and rebuild an identical pipeline via the demo interpreter."""
     from perforata import presets
-    payload = {
-        "generator": ConcentricRings(rings=5, r0=8.0, factor=1.2),
-        "modifiers": [Affine.rotation(15),
-                      FieldModulate("scale", ShapeGradient("circle",
-                                                           falloff="exponential",
-                                                           k=2.0, invert=True))],
-        "rules": {"*": ShapeSpec("hexagon", fill=0.6)},
-        "crop": None, "min_hole": 0.0, "min_wall": 0.0, "target_d": 0.0,
-    }
+    from perforata.demo import run_state
+    payload = presets.load_factory("spiral-galaxy")
     presets.save("test-pipe", payload, directory=tmp_path)
     assert presets.list_presets(directory=tmp_path) == ["test-pipe"]
 
     loaded = presets.load("test-pipe", directory=tmp_path)
-    cloud = loaded["generator"].run()
-    for mod in loaded["modifiers"]:
-        cloud = mod.run(cloud)
-    shapes = ShapeInstancer(rules=loaded["rules"]).run(cloud)
-    assert len(shapes) > 0
+    assert loaded == payload
+    assert len(run_state(loaded["ui_state"])) > 0
 
     assert presets.delete("test-pipe", directory=tmp_path)
     assert presets.list_presets(directory=tmp_path) == []
@@ -697,29 +688,18 @@ def test_preset_roundtrip(tmp_path):
 
 def test_preset_bytes_roundtrip():
     from perforata import presets
-    payload = {"generator": HexGrid(pitch=10, width=50, height=50)}
+    payload = {"ui_state": {"gen_type": "Hexagonal", "gen_p": 10.0}}
     data = presets.dumps(payload)
-    loaded = presets.loads(data)
-    assert len(loaded["generator"].run()) > 0
+    assert presets.loads(data) == payload
 
 
 def test_preset_rejects_garbage():
     from perforata import presets
-    import pickle
     with pytest.raises(ValueError):
+        presets.loads(b'{"not": "a preset"}')
+    import pickle
+    with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
         presets.loads(pickle.dumps({"not": "a preset"}))
-
-
-def test_preset_image_field_roundtrip(tmp_path):
-    """cloudpickle must carry numpy image data inside an ImageField."""
-    from perforata import presets
-    img = np.zeros((8, 8))
-    img[:, 4:] = 1.0
-    payload = {"field": ImageField(img, fit="stretch")}
-    presets.save("img-field", payload, directory=tmp_path)
-    loaded = presets.load("img-field", directory=tmp_path)
-    v = loaded["field"].sample(np.array([[0.9, 0.5]]))
-    assert v[0] > 0.8
 
 
 def test_factory_presets_are_valid_ui_state():
