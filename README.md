@@ -60,34 +60,100 @@ Generators ──▶ Modifiers ──▶ Decorators ──▶ Ops ──▶ Expo
 * **Exporters** (`perforata.exporters`) write DXF (`ezdxf`) or SVG, to a
   path or to bytes (for UI download buttons).
 
-## Quick start
+## Install
 
-Requires [uv](https://docs.astral.sh/uv/).
+The core engine depends only on **numpy**; heavier layers are extras:
+
+| Extra | Adds | For |
+|---|---|---|
+| *(none)* | — | core engine (numpy only) |
+| `geo` | shapely | crop slicing, edge clearance |
+| `dxf` | ezdxf | DXF export |
+| `raster` | pillow | text/image fields |
+| `render` | matplotlib | previews, demo gallery |
+| `app` | streamlit (+ all above) | interactive UI |
+| `all` | everything | — |
+
+### With pip
 
 ```bash
-# Interactive UI
-uv run streamlit run app.py
+pip install perforata              # core engine
+pip install "perforata[dxf]"       # pick the extras you need
+pip install "perforata[all]"       # everything
+```
 
-# Run the test suite
-uv run --group dev pytest
+### With uv
+
+As a project dependency:
+
+```bash
+uv add perforata                   # core engine
+uv add "perforata[dxf,render]"     # with extras
+```
+
+As a standalone CLI tool (no project needed — uv manages the venv):
+
+```bash
+uv tool install "perforata[all]"   # puts `perforata` on your PATH
+# or run one-off without installing anything:
+uvx --from "perforata[render]" perforata demo -o gallery.png
+uvx --from "perforata[all]" perforata ui
+```
+
+## Quick start
+
+```bash
+# Unified CLI
+perforata --version
+perforata presets list                      # factory presets
+perforata presets show honeycomb-vent
+perforata validate pipeline.json            # schema-check a params file
+perforata render pipeline.json -o out.svg   # params JSON -> SVG/DXF
+perforata demo -o gallery.png               # preset matrix  [render]
+perforata ui                                # Streamlit UI   [app]
+```
+
+A pipeline params file is plain JSON (the same contract the web
+platform uses — see `perforata.api`):
+
+```json
+{
+  "v": 1,
+  "generator": {"type": "HexGrid",
+                "params": {"pitch": 9.0, "width": 250, "height": 180}},
+  "rules": {"*": {"shape": "hexagon", "fill": 0.8}},
+  "manufacturing": {"min_wall": 1.5}
+}
+```
+
+Developing from a checkout (requires [uv](https://docs.astral.sh/uv/)):
+
+```bash
+uv sync --all-extras          # install everything into .venv
+uv run perforata --version    # the CLI, from the checkout
+uv run streamlit run app.py   # interactive UI
+uv run pytest                 # test suite
+uv build                      # sdist + wheel into dist/
 ```
 
 ## Presets
 
 Pipelines can be stored, reloaded and shared:
 
-* **Factory presets** — curated pipelines shipped with the repo, defined
-  as code in `perforata/factory_presets.py` (tracked in git). Load them
-  from the "Factory presets" section in the UI sidebar.
+* **Factory presets** — curated pipelines shipped with the package,
+  defined as code in `perforata/factory_presets.py` (tracked in git).
+  Load them from the "Factory presets" section in the UI sidebar or via
+  `perforata presets list|show`.
 * **User presets** — save the current UI pipeline into `presets/user/`
-  (git-ignored) as a `.pfp` file, serialized with **cloudpickle** so
-  everything survives: closures, compiled field expressions, and numpy
-  image data inside `ImageField`. The "Share" button downloads the same
-  bytes for sending to someone else, who can import it via the file
-  uploader.
+  (git-ignored) as a versioned **JSON** file. The "Share" button
+  downloads the same JSON for sending to someone else, who can import it
+  via the file uploader. JSON presets cannot execute code on load, so
+  they are safe to share.
 
-> ⚠️ `.pfp` files are pickle-based and execute code on load — only load
-> presets from sources you trust.
+> ⚠️ Legacy `.pfp` presets (cloudpickle) are still readable behind a
+> deprecation shim, but they are pickle-based and execute code on load —
+> only import `.pfp` files from sources you trust. Support will be
+> removed in the next minor version; re-save to convert to JSON.
 
 The **🎬 Demo gallery** sidebar button renders all factory presets into a
 single matrix image (the successor of the MVP's `--demo` grid), with a

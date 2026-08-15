@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python: "3.12"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Sync (all extras + dev)
+        run: uv sync --all-extras
+      - name: Lint
+        run: uv run ruff check .
+      - name: Test
+        run: uv run pytest -q
+
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist + wheel
+        run: uv build
+      - name: Core-only import check (numpy only)
+        # Proves the wheel imports with core deps alone — no
+        # matplotlib/PIL/streamlit at import time (Pyodide requirement).
+        run: >
+          uv run --isolated --no-project
+          --with dist/*.whl
+          python -c "import perforata, perforata.api, perforata.cli,
+          perforata.presets, perforata.generators, perforata.fields,
+          perforata.modifiers, perforata.decorators, perforata.ops,
+          perforata.exporters; print(perforata.__version__)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
