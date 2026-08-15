@@ -25,6 +25,7 @@ will be removed in the next minor version.
 from __future__ import annotations
 
 import json
+import os
 import warnings
 from pathlib import Path
 from typing import Callable
@@ -92,9 +93,21 @@ def loads(data: bytes):
 
 def _path_for(name: str, directory: Path | str | None = None) -> Path:
     directory = Path(directory) if directory else PRESET_DIR
+
+    if Path(name).is_absolute():
+        raise ValueError("preset name must be a relative file name")
+
     if not name.endswith((PRESET_EXT, LEGACY_EXT)):
         name = name + PRESET_EXT
-    return directory / name
+
+    # Canonicalize (following symlinks) and require the result to stay
+    # inside the preset directory — user-supplied names must not be able
+    # to address files elsewhere (CWE-22).
+    base_dir = os.path.realpath(directory)
+    candidate = os.path.realpath(os.path.join(base_dir, name))
+    if not candidate.startswith(base_dir + os.sep):
+        raise ValueError("preset path escapes preset directory")
+    return Path(candidate)
 
 
 def save(name: str, payload, directory: Path | str | None = None) -> Path:
