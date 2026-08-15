@@ -5,16 +5,23 @@ The entry points take a plain JSON-safe **params dict** describing a
 pipeline and run it through the engine::
 
     {
-      "v": 1,
-      "generator":  {"type": "HexGrid", "params": {"pitch": 9.0, ...}},
-      "modifiers":  [{"type": "FieldModulate", "params": {...}}, ...],
+      "version": 2,
+      "generator":  {"type": "HexGrid", "pitch": 9.0, ...},
+      "modifiers":  [{"type": "FieldModulate",
+                      "field": {"type": "RadialGradient"}, ...}],
       "rules":      {"*": {"shape": "hexagon", "fill": 0.8}},
       "manufacturing": {
           "min_hole": 0, "min_wall": 1.5, "target_d": 0,
-          "crop": {"boundary": {"kind": "rect", "width": 250, "height": 180},
+          "crop": {"boundary": {"kind": "rect", "width": 250,
+                                "height": 180},
                    "mode": "cull", "margin": 0, "outline": true}
       }
     }
+
+The schema is defined by pydantic models in :mod:`perforata.schema`
+(:class:`~perforata.schema.PipelineDef`); v1 documents (0.3.x, node
+params nested under ``"params"``) are migrated automatically with a
+:class:`DeprecationWarning`.
 
 Core functions (dict in, dict out):
 
@@ -31,166 +38,83 @@ from __future__ import annotations
 
 import json
 import time
+import warnings
 
-from .generators import CartesianGrid, HexGrid, ConcentricRings
-from .fields import (ShapeGradient, LinearGradient, RadialGradient,
-                     Expression)
-from .modifiers import (Affine, FieldModulate, DensityWarp,
-                        AttributeFilter, PolarWarp, TagFilter)
-from .decorators import ShapeInstancer, ShapeSpec, shapes_bounds
-from .ops import (Boundary, Crop, resolve_constraints, cutouts_only,
-                  min_spacing)
+from pydantic import ValidationError
 
-#: Params-schema version this build understands.
-SCHEMA_VERSION = 1
+from .schema import SCHEMA_VERSION, PipelineDef, detect_version, migrate
+from .decorators import ShapeInstancer, shapes_bounds
+from .ops import resolve_constraints, cutouts_only, min_spacing
 
-GENERATORS = {
-    "CartesianGrid": CartesianGrid,
-    "HexGrid": HexGrid,
-    "ConcentricRings": ConcentricRings,
-}
-
-FIELDS = {"ShapeGradient", "LinearGradient", "RadialGradient", "Expression"}
-
-MODIFIERS = {"Rotate", "Scale", "Shear", "Translate", "PolarWarp",
-             "FieldModulate", "DensityWarp", "AttributeFilter", "TagFilter"}
+__all__ = ["SCHEMA_VERSION", "evaluate", "export", "validate",
+           "evaluate_json", "export_json"]
 
 
-def _build_field(fdef: dict):
-    t = fdef["type"]
-    p = dict(fdef.get("params", {}))
-    fscale = p.pop("fscale", 1.0)
-    if t == "ShapeGradient":
-        field = ShapeGradient(**p)
-    elif t == "LinearGradient":
-        field = LinearGradient(**p)
-    elif t == "RadialGradient":
-        field = RadialGradient(**p)
-    elif t == "Expression":
-        field = Expression(p["expr"])
-    else:
-        raise ValueError(f"unknown field type {t!r}")
-    if abs(fscale - 1.0) > 1e-9:
-        field = field.scaled(fscale)
-    return field
-
-
-def _build_modifier(mdef: dict):
-    t = mdef["type"]
-    p = dict(mdef.get("params", {}))
-    if t == "Rotate":
-        return Affine.rotation(p.get("degrees", 0.0))
-    if t == "Scale":
-        return Affine.scaling(p.get("sx", 1.0), p.get("sy", 1.0))
-    if t == "Shear":
-        return Affine.shear(p.get("shx", 0.0), p.get("shy", 0.0))
-    if t == "Translate":
-        return Affine.translation(p.get("dx", 0.0), p.get("dy", 0.0))
-    if t == "PolarWarp":
-        return PolarWarp(r_offset=p.get("r_offset", 100.0))
-    if t == "FieldModulate":
-        field = _build_field(p.pop("field"))
-        attr = p.pop("attr", "scale")
-        return FieldModulate(attr, field, **p)
-    if t == "DensityWarp":
-        field = _build_field(p.pop("field"))
-        return DensityWarp(field, **p)
-    if t == "AttributeFilter":
-        attr = p.pop("attr", "scale")
-        return AttributeFilter(attr, **p)
-    if t == "TagFilter":
-        return TagFilter(*p.get("tags", ["default"]))
-    raise ValueError(f"unknown modifier type {t!r}")
+def _coerce(params: dict | PipelineDef) -> PipelineDef:
+    """Validate a raw params dict into a PipelineDef, auto-migrating v1
+    documents (with a deprecation warning). Raises ValidationError."""
+    if isinstance(params, PipelineDef):
+        return params
+    if isinstance(params, dict) and detect_version(params) == 1:
+        warnings.warn(
+            "params schema v1 (nested 'params' keys) is deprecated; "
+            "migrate documents to schema v2 (flat node keys) — see "
+            "perforata.schema.migrate()",
+            DeprecationWarning, stacklevel=3)
+        params = migrate(params)
+    return PipelineDef.model_validate(params)
 
 
 def validate(params: dict) -> list[str]:
     """Schema-check a params dict. Returns a list of human-readable
     problems; an empty list means the params look valid."""
-    problems: list[str] = []
     if not isinstance(params, dict):
         return ["params must be a JSON object"]
-    v = params.get("v", SCHEMA_VERSION)
-    if not isinstance(v, int) or v > SCHEMA_VERSION:
-        problems.append(f"unsupported schema version {v!r} "
-                        f"(this build understands <= {SCHEMA_VERSION})")
-    gdef = params.get("generator")
-    if not isinstance(gdef, dict):
-        problems.append('missing required "generator" object')
-    elif gdef.get("type") not in GENERATORS:
-        problems.append(
-            f'unknown generator type {gdef.get("type")!r} '
-            f"(expected one of {sorted(GENERATORS)})")
-    for i, mdef in enumerate(params.get("modifiers", [])):
-        if not isinstance(mdef, dict) or mdef.get("type") not in MODIFIERS:
-            t = mdef.get("type") if isinstance(mdef, dict) else mdef
-            problems.append(f"modifiers[{i}]: unknown type {t!r} "
-                            f"(expected one of {sorted(MODIFIERS)})")
-            continue
-        p = mdef.get("params", {})
-        if mdef["type"] in ("FieldModulate", "DensityWarp"):
-            fdef = p.get("field")
-            if not isinstance(fdef, dict):
-                problems.append(f'modifiers[{i}]: missing "field" object')
-            elif fdef.get("type") not in FIELDS:
-                problems.append(
-                    f"modifiers[{i}].field: unknown type "
-                    f"{fdef.get('type')!r} (expected one of "
-                    f"{sorted(FIELDS)})")
-    rules = params.get("rules", {})
-    if not isinstance(rules, dict):
-        problems.append('"rules" must be an object of tag -> spec')
-    mfg = params.get("manufacturing", {})
-    if not isinstance(mfg, dict):
-        problems.append('"manufacturing" must be an object')
-    elif isinstance(mfg.get("crop"), dict):
-        kind = mfg["crop"].get("boundary", {}).get("kind", "rect")
-        if kind not in ("rect", "circle"):
-            problems.append(
-                f"manufacturing.crop.boundary.kind: unknown kind {kind!r} "
-                f"(expected 'rect' or 'circle')")
-    return problems
+    v = params.get("version", params.get("v"))
+    if v is not None and (not isinstance(v, int) or v > SCHEMA_VERSION):
+        return [f"unsupported schema version {v!r} "
+                f"(this build understands <= {SCHEMA_VERSION})"]
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            _coerce(params)
+    except ValidationError as exc:
+        return [_format_error(e) for e in exc.errors()]
+    return []
 
 
-def _run(params: dict):
+def _format_error(err: dict) -> str:
+    """One pydantic error dict -> a compact, path-addressed message."""
+    loc = ".".join(str(p) for p in err["loc"]) or "<root>"
+    return f"{loc}: {err['msg']}"
+
+
+def _run(pipeline: PipelineDef):
     """Execute the pipeline; return (cloud, shapes, stage timings in s)."""
     timings: dict[str, float] = {}
 
     t0 = time.perf_counter()
-    gdef = params["generator"]
-    gen = GENERATORS[gdef["type"]](**gdef.get("params", {}))
-    cloud = gen.run()
+    cloud = pipeline.generator.build().run()
     timings["generate"] = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    for mdef in params.get("modifiers", []):
-        cloud = _build_modifier(mdef).run(cloud)
+    for mdef in pipeline.modifiers:
+        cloud = mdef.build().run(cloud)
     timings["modify"] = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    rules = {tag: ShapeSpec(**spec)
-             for tag, spec in params.get("rules", {"*": {}}).items()}
+    rules = {tag: rule.build() for tag, rule in pipeline.rules.items()}
     shapes = ShapeInstancer(rules=rules).run(cloud)
     timings["instance"] = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    mfg = params.get("manufacturing", {})
+    mfg = pipeline.manufacturing
     shapes = resolve_constraints(shapes,
-                                 diameter=mfg.get("target_d") or 0,
-                                 min_wall=mfg.get("min_wall") or 0,
-                                 min_hole=mfg.get("min_hole") or 0)
-    crop_def = mfg.get("crop")
-    if crop_def:
-        b = crop_def.get("boundary", {})
-        if b.get("kind") == "circle":
-            boundary = Boundary.circle(b.get("diameter", 120.0))
-        else:
-            boundary = Boundary.rect(b.get("width", 200.0),
-                                     b.get("height", 150.0))
-        shapes = Crop(boundary,
-                      mode=crop_def.get("mode", "cull"),
-                      margin=crop_def.get("margin", 0.0),
-                      include_outline=crop_def.get("outline", True)
-                      ).run(shapes)
+                                 diameter=mfg.target_d,
+                                 min_wall=mfg.min_wall,
+                                 min_hole=mfg.min_hole)
+    if mfg.crop is not None:
+        shapes = mfg.crop.build().run(shapes)
     timings["constrain"] = time.perf_counter() - t0
 
     return cloud, shapes, timings
@@ -200,34 +124,40 @@ def _shape_json(s: dict) -> dict:
     """Compact JSON-friendly form: t=c|p, o=outline flag."""
     if s["type"] == "circle":
         cx, cy = s["center"]
-        return {"t": "c", "x": round(cx, 4), "y": round(cy, 4),
-                "r": round(s["radius"], 4),
+        return {"t": "c", "x": round(float(cx), 4), "y": round(float(cy), 4),
+                "r": round(float(s["radius"]), 4),
                 "o": bool(s.get("outline", False))}
     return {"t": "p",
-            "pts": [[round(x, 4), round(y, 4)] for x, y in s["points"]],
+            "pts": [[round(float(x), 4), round(float(y), 4)]
+                    for x, y in s["points"]],
             "o": bool(s.get("outline", False))}
 
 
-def evaluate(params: dict) -> dict:
+def evaluate(params: dict | PipelineDef) -> dict:
     """Run the pipeline described by ``params``; return a JSON-safe dict
-    with ``shapes``, ``stats``, and ``timings_ms``."""
+    with ``shapes``, ``stats``, and ``timings_ms``.
+
+    Raises :class:`pydantic.ValidationError` on invalid params (use
+    :func:`validate` first for a friendly problem list)."""
+    pipeline = _coerce(params)
     total0 = time.perf_counter()
-    cloud, shapes, timings = _run(params)
+    cloud, shapes, timings = _run(pipeline)
 
     t0 = time.perf_counter()
     cuts = cutouts_only(shapes)
     stats: dict = {"points": len(cloud), "cutouts": len(cuts)}
     if cuts:
         sizes = [s["size"] for s in cuts]
-        stats["smallest_hole"] = round(min(sizes), 4)
-        stats["largest_hole"] = round(max(sizes), 4)
+        stats["smallest_hole"] = round(float(min(sizes)), 4)
+        stats["largest_hole"] = round(float(max(sizes)), 4)
         x0, y0, x1, y1 = shapes_bounds(cuts)
-        stats["extent"] = [round(x1 - x0, 3), round(y1 - y0, 3)]
+        stats["extent"] = [round(float(x1 - x0), 3),
+                           round(float(y1 - y0), 3)]
         # min_spacing is O(n^2)-ish; skip for very dense patterns.
         if len(cuts) <= 3000:
             gap = min_spacing(cuts)
             if gap is not None:
-                stats["min_spacing"] = round(gap, 4)
+                stats["min_spacing"] = round(float(gap), 4)
     timings["stats"] = time.perf_counter() - t0
     timings["total"] = time.perf_counter() - total0
 
@@ -238,10 +168,11 @@ def evaluate(params: dict) -> dict:
     }
 
 
-def export(params: dict, fmt: str = "svg") -> bytes:
+def export(params: dict | PipelineDef, fmt: str = "svg") -> bytes:
     """Run the pipeline and export the result as ``"svg"`` or ``"dxf"``
     bytes."""
-    _, shapes, _ = _run(params)
+    pipeline = _coerce(params)
+    _, shapes, _ = _run(pipeline)
     if fmt == "dxf":
         from .exporters import DXFExporter
         return DXFExporter().run(shapes)

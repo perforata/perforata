@@ -62,11 +62,12 @@ Generators ──▶ Modifiers ──▶ Decorators ──▶ Ops ──▶ Expo
 
 ## Install
 
-The core engine depends only on **numpy**; heavier layers are extras:
+The core engine depends only on **numpy** and **pydantic** (the typed
+params schema); heavier layers are extras:
 
 | Extra | Adds | For |
 |---|---|---|
-| *(none)* | — | core engine (numpy only) |
+| *(none)* | — | core engine (numpy + pydantic) |
 | `geo` | shapely | crop slicing, edge clearance |
 | `dxf` | ezdxf | DXF export |
 | `raster` | pillow | text/image fields |
@@ -109,22 +110,30 @@ perforata presets list                      # factory presets
 perforata presets show honeycomb-vent
 perforata validate pipeline.json            # schema-check a params file
 perforata render pipeline.json -o out.svg   # params JSON -> SVG/DXF
+perforata schema                            # params JSON Schema -> stdout
 perforata demo -o gallery.png               # preset matrix  [render]
 perforata ui                                # Streamlit UI   [app]
 ```
 
 A pipeline params file is plain JSON (the same contract the web
-platform uses — see `perforata.api`):
+platform uses — see `perforata.api`), validated against typed pydantic
+models in `perforata.schema`:
 
 ```json
 {
-  "v": 1,
-  "generator": {"type": "HexGrid",
-                "params": {"pitch": 9.0, "width": 250, "height": 180}},
+  "version": 2,
+  "generator": {"type": "HexGrid", "pitch": 9.0,
+                "width": 250, "height": 180},
   "rules": {"*": {"shape": "hexagon", "fill": 0.8}},
   "manufacturing": {"min_wall": 1.5}
 }
 ```
+
+`perforata schema` prints the corresponding JSON Schema (published with
+each release as `pipeline.schema.json`) for editor autocompletion and
+TypeScript codegen. Legacy v1 documents (node params nested under a
+`"params"` key) are migrated automatically and can be converted with
+`perforata.schema.migrate()`.
 
 Developing from a checkout (requires [uv](https://docs.astral.sh/uv/)):
 
@@ -219,6 +228,57 @@ shapes = g.run("cuts")
 * The UI's Export section includes a **Config dump (.txt)** button: a
   plain-text report of the widget state and the constructed node
   pipeline (plus result stats), for debugging and bug reports.
+
+## Contributing
+
+Contributions follow a standard feature-branch / pull-request workflow
+(direct pushes to `master` are reserved for maintainers):
+
+1. **Branch** off the latest `master`:
+
+   ```bash
+   git checkout master && git pull
+   git checkout -b feature/my-change     # or fix/..., docs/...
+   ```
+
+2. **Make your changes**, with tests. Before committing, verify
+   locally what CI will check:
+
+   ```bash
+   uv sync --all-extras
+   uv run pytest              # test suite
+   uv run ruff check .        # lint
+   ```
+
+   If you changed the params schema models, regenerate the committed
+   snapshot (`uv run perforata schema -o
+   tests/data/pipeline.schema.json`) and bump `SCHEMA_VERSION` if the
+   change is breaking. Add a note under `## [Unreleased]` in
+   `CHANGELOG.md` for anything user-visible.
+
+3. **Push the branch and open a pull request** against `master`:
+
+   ```bash
+   git push -u origin feature/my-change
+   ```
+
+   CI (`ci.yml`) runs the test matrix and lint on every PR; all checks
+   must pass before merge. State your agreement with the
+   [CLA](CLA.md) in your first PR.
+
+### Releasing (maintainers)
+
+Releases are tag-driven and gated by `release.yml`:
+
+1. On `master`, bump `[project].version` in `pyproject.toml` and move
+   the `## [Unreleased]` notes into a new `## [x.y.z]` section in
+   `CHANGELOG.md` (pre-1.0: breaking changes bump the minor version).
+2. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+3. The workflow verifies tag ↔ `pyproject.toml` ↔ CHANGELOG agreement
+   and that the version isn't already on PyPI, re-runs CI, builds the
+   sdist/wheel, publishes to PyPI via Trusted Publishing, and creates a
+   GitHub Release with the changelog notes, the dist files, and
+   `pipeline.schema.json`.
 
 ## License
 

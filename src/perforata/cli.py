@@ -4,6 +4,7 @@ Installed as the ``perforata`` console script::
 
     perforata render  pipeline.json -o out.svg      # params JSON -> file
     perforata validate pipeline.json                # schema-check params
+    perforata schema                                # JSON Schema -> stdout
     perforata presets list                          # factory presets
     perforata presets show honeycomb-vent
     perforata demo -o gallery.png                   # needs [render]
@@ -63,14 +64,32 @@ def _cmd_render(args) -> int:
 
 def _cmd_validate(args) -> int:
     from . import api
+    from .schema import detect_version
 
     params = _load_params(args.pipeline)
+    version = detect_version(params) if isinstance(params, dict) else None
     problems = api.validate(params)
     if problems:
         for p in problems:
             print(f"invalid: {p}", file=sys.stderr)
         return 2
-    print(f"{args.pipeline}: OK")
+    print(f"{args.pipeline}: OK (schema v{version})")
+    return 0
+
+
+def _cmd_schema(args) -> int:
+    import json as _json
+    from .schema import PipelineDef
+
+    schema = PipelineDef.model_json_schema()
+    text = _json.dumps(schema, indent=2, sort_keys=True)
+    if args.output:
+        out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+        print(f"wrote {out}")
+    else:
+        print(text)
     return 0
 
 
@@ -136,6 +155,12 @@ def main(argv: list[str] | None = None) -> int:
                        help="schema-check a params-JSON pipeline")
     p.add_argument("pipeline", help="path to a pipeline params JSON file")
     p.set_defaults(fn=_cmd_validate)
+
+    p = sub.add_parser("schema",
+                       help="print the pipeline params JSON Schema")
+    p.add_argument("-o", "--output", default=None,
+                   help="write to a file instead of stdout")
+    p.set_defaults(fn=_cmd_schema)
 
     p = sub.add_parser("presets", help="inspect factory presets")
     p.add_argument("action", choices=["list", "show"])

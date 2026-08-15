@@ -1,6 +1,6 @@
 [project]
 name = "perforata"
-version = "0.3.1"
+version = "0.4.0"
 description = "Parametric perforation pattern generator — node-graph engine with unified CLI and optional Streamlit UI"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -8,6 +8,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "numpy",
+    "pydantic>=2.7",
 ]
 
 [project.optional-dependencies]
