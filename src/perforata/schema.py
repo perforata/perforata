@@ -29,9 +29,10 @@ Schema v1 (0.3.x) nested node parameters under a ``"params"`` key;
 
 from __future__ import annotations
 
+import base64
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 #: Params-schema version this build understands.
 SCHEMA_VERSION = 2
@@ -49,18 +50,26 @@ class StrictModel(BaseModel):
 
 class _FieldDefBase(StrictModel):
     """Shared knobs for every field: ``fscale`` zooms the field about
-    the center of the unit square (see ``Field.scaled``)."""
+    the center of the unit square (see ``Field.scaled``); ``offset_u``/
+    ``offset_v`` translate it in uv space afterward (see
+    ``Field.offset``)."""
 
     fscale: float = Field(1.0, gt=0)
+    offset_u: float = 0.0
+    offset_v: float = 0.0
 
     def _build_raw(self):
         raise NotImplementedError
 
     def build(self):
-        """Return the engine Field, with ``fscale`` applied."""
+        """Return the engine Field, with ``fscale`` then ``offset``
+        applied (in that order — offset shifts the already-scaled
+        field)."""
         field = self._build_raw()
         if abs(self.fscale - 1.0) > 1e-9:
             field = field.scaled(self.fscale)
+        if abs(self.offset_u) > 1e-9 or abs(self.offset_v) > 1e-9:
+            field = field.offset(self.offset_u, self.offset_v)
         return field
 
 
@@ -108,9 +117,49 @@ class ExpressionDef(_FieldDefBase):
         return Expression(self.expr)
 
 
+class ImageFieldDef(_FieldDefBase):
+    """A browser-uploaded (or otherwise client-side) image, shipped as a
+    base64-encoded uint8 luminance grid so the params document stays
+    JSON-safe for persistence (localStorage, URL hashes, Postgres
+    JSONB). ``luminance_b64`` must decode to exactly ``w * h`` bytes,
+    row-major, white=255/black=0 (see :func:`perforata.fields._to_luminance`).
+    """
+
+    type: Literal["ImageField"]
+    luminance_b64: str
+    w: int = Field(..., gt=0)
+    h: int = Field(..., gt=0)
+    invert: bool = False
+    fit: Literal["stretch", "contain"] = "contain"
+    bg: float = Field(0.0, ge=0.0, le=1.0)
+    smooth: bool = True
+
+    @model_validator(mode="after")
+    def _check_payload(self):
+        try:
+            raw = base64.b64decode(self.luminance_b64, validate=True)
+        except Exception as exc:
+            raise ValueError(
+                f"luminance_b64 is not valid base64: {exc}") from exc
+        expected = self.w * self.h
+        if len(raw) != expected:
+            raise ValueError(
+                f"luminance_b64 decodes to {len(raw)} bytes, expected "
+                f"w*h = {expected} (w={self.w}, h={self.h})")
+        return self
+
+    def _build_raw(self):
+        import numpy as np
+        from .fields import ImageField
+        raw = base64.b64decode(self.luminance_b64)
+        arr = np.frombuffer(raw, dtype=np.uint8).reshape(self.h, self.w)
+        return ImageField(arr, invert=self.invert, fit=self.fit,
+                          bg=self.bg, smooth=self.smooth)
+
+
 FieldDef = Annotated[
     Union[LinearGradientDef, RadialGradientDef, ShapeGradientDef,
-          ExpressionDef],
+          ExpressionDef, ImageFieldDef],
     Field(discriminator="type"),
 ]
 

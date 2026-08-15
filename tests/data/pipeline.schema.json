@@ -275,6 +275,7 @@
           "discriminator": {
             "mapping": {
               "Expression": "#/$defs/ExpressionDef",
+              "ImageField": "#/$defs/ImageFieldDef",
               "LinearGradient": "#/$defs/LinearGradientDef",
               "RadialGradient": "#/$defs/RadialGradientDef",
               "ShapeGradient": "#/$defs/ShapeGradientDef"
@@ -293,6 +294,9 @@
             },
             {
               "$ref": "#/$defs/ExpressionDef"
+            },
+            {
+              "$ref": "#/$defs/ImageFieldDef"
             }
           ],
           "title": "Field"
@@ -368,6 +372,16 @@
           "title": "Fscale",
           "type": "number"
         },
+        "offset_u": {
+          "default": 0.0,
+          "title": "Offset U",
+          "type": "number"
+        },
+        "offset_v": {
+          "default": 0.0,
+          "title": "Offset V",
+          "type": "number"
+        },
         "type": {
           "const": "Expression",
           "title": "Type",
@@ -405,6 +419,7 @@
           "discriminator": {
             "mapping": {
               "Expression": "#/$defs/ExpressionDef",
+              "ImageField": "#/$defs/ImageFieldDef",
               "LinearGradient": "#/$defs/LinearGradientDef",
               "RadialGradient": "#/$defs/RadialGradientDef",
               "ShapeGradient": "#/$defs/ShapeGradientDef"
@@ -423,6 +438,9 @@
             },
             {
               "$ref": "#/$defs/ExpressionDef"
+            },
+            {
+              "$ref": "#/$defs/ImageFieldDef"
             }
           ],
           "title": "Field"
@@ -546,6 +564,81 @@
       "title": "HexGridDef",
       "type": "object"
     },
+    "ImageFieldDef": {
+      "additionalProperties": false,
+      "description": "A browser-uploaded (or otherwise client-side) image, shipped as a\nbase64-encoded uint8 luminance grid so the params document stays\nJSON-safe for persistence (localStorage, URL hashes, Postgres\nJSONB). ``luminance_b64`` must decode to exactly ``w * h`` bytes,\nrow-major, white=255/black=0 (see :func:`perforata.fields._to_luminance`).",
+      "properties": {
+        "bg": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Bg",
+          "type": "number"
+        },
+        "fit": {
+          "default": "contain",
+          "enum": [
+            "stretch",
+            "contain"
+          ],
+          "title": "Fit",
+          "type": "string"
+        },
+        "fscale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Fscale",
+          "type": "number"
+        },
+        "h": {
+          "exclusiveMinimum": 0,
+          "title": "H",
+          "type": "integer"
+        },
+        "invert": {
+          "default": false,
+          "title": "Invert",
+          "type": "boolean"
+        },
+        "luminance_b64": {
+          "title": "Luminance B64",
+          "type": "string"
+        },
+        "offset_u": {
+          "default": 0.0,
+          "title": "Offset U",
+          "type": "number"
+        },
+        "offset_v": {
+          "default": 0.0,
+          "title": "Offset V",
+          "type": "number"
+        },
+        "smooth": {
+          "default": true,
+          "title": "Smooth",
+          "type": "boolean"
+        },
+        "type": {
+          "const": "ImageField",
+          "title": "Type",
+          "type": "string"
+        },
+        "w": {
+          "exclusiveMinimum": 0,
+          "title": "W",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "luminance_b64",
+        "w",
+        "h"
+      ],
+      "title": "ImageFieldDef",
+      "type": "object"
+    },
     "LinearGradientDef": {
       "additionalProperties": false,
       "properties": {
@@ -558,6 +651,16 @@
           "default": 1.0,
           "exclusiveMinimum": 0,
           "title": "Fscale",
+          "type": "number"
+        },
+        "offset_u": {
+          "default": 0.0,
+          "title": "Offset U",
+          "type": "number"
+        },
+        "offset_v": {
+          "default": 0.0,
+          "title": "Offset V",
           "type": "number"
         },
         "type": {
@@ -641,6 +744,16 @@
           "default": false,
           "title": "Invert",
           "type": "boolean"
+        },
+        "offset_u": {
+          "default": 0.0,
+          "title": "Offset U",
+          "type": "number"
+        },
+        "offset_v": {
+          "default": 0.0,
+          "title": "Offset V",
+          "type": "number"
         },
         "type": {
           "const": "RadialGradient",
@@ -761,6 +874,16 @@
         "k": {
           "default": 3.0,
           "title": "K",
+          "type": "number"
+        },
+        "offset_u": {
+          "default": 0.0,
+          "title": "Offset U",
+          "type": "number"
+        },
+        "offset_v": {
+          "default": 0.0,
+          "title": "Offset V",
           "type": "number"
         },
         "shape": {

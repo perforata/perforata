@@ -1,8 +1,10 @@
 """Tests of the typed params schema (perforata.schema)."""
 
+import base64
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 from pydantic import ValidationError
 
@@ -107,13 +109,63 @@ def test_build_produces_engine_nodes():
         "crop": {"boundary": {"kind": "blob"}}}), "boundary"),
     # negative manufacturing values
     (dict(V2_DOC, manufacturing={"min_wall": -1.0}), "min_wall"),
+    # ImageField: malformed base64
+    (dict(V2_DOC, modifiers=[{"type": "FieldModulate",
+                              "field": {"type": "ImageField",
+                                        "luminance_b64": "not-base64!!",
+                                        "w": 2, "h": 2}}]),
+     "luminance_b64"),
+    # ImageField: payload length doesn't match w*h
+    (dict(V2_DOC, modifiers=[{"type": "FieldModulate",
+                              "field": {"type": "ImageField",
+                                        "luminance_b64": base64.b64encode(
+                                            bytes([0, 255, 128])).decode(),
+                                        "w": 2, "h": 2}}]),
+     "luminance_b64"),
 ])
 def test_invalid_documents_rejected(doc, needle):
     with pytest.raises(ValidationError) as exc:
         PipelineDef.model_validate(doc)
-    locs = ".".join(".".join(str(p) for p in e["loc"])
-                    for e in exc.value.errors())
-    assert needle in locs
+    errors = exc.value.errors()
+    locs = ".".join(".".join(str(p) for p in e["loc"]) for e in errors)
+    msgs = " ".join(e["msg"] for e in errors)
+    assert needle in locs or needle in msgs
+
+
+# -- field offset & ImageField --------------------------------------------
+
+def test_field_offset_shifts_hotspot_through_schema():
+    """offset_u/offset_v in a field def shift the built field's peak."""
+    doc = dict(V2_DOC, modifiers=[
+        {"type": "FieldModulate",
+         "field": {"type": "RadialGradient", "invert": True,
+                   "offset_u": 0.2, "offset_v": -0.1},
+         "lo": 0.0, "hi": 1.0},
+    ])
+    pipeline = PipelineDef.model_validate(doc)
+    field = pipeline.modifiers[0].field.build()
+    base = field.sample(np.array([[0.5, 0.5]]))[0]
+    moved = field.sample(np.array([[0.7, 0.4]]))[0]  # 0.5+0.2, 0.5-0.1
+    assert moved > base
+    assert abs(moved - 1.0) < 1e-9  # recovers the un-shifted peak
+
+
+def test_image_field_roundtrip_from_synthetic_grid():
+    """A small synthetic luminance grid, base64-encoded exactly as the
+    web frontend ships it, builds a working ImageField."""
+    img = np.zeros((4, 4), dtype=np.uint8)
+    img[:, 2:] = 255  # right half white
+    b64 = base64.b64encode(img.tobytes()).decode("ascii")
+    doc = dict(V2_DOC, modifiers=[
+        {"type": "FieldModulate",
+         "field": {"type": "ImageField", "luminance_b64": b64,
+                   "w": 4, "h": 4, "invert": False, "fit": "stretch"},
+         "lo": 0.0, "hi": 1.0},
+    ])
+    pipeline = PipelineDef.model_validate(doc)
+    field = pipeline.modifiers[0].field.build()
+    v = field.sample(np.array([[0.1, 0.5], [0.9, 0.5]]))
+    assert v[0] < 0.2 and v[1] > 0.8
 
 
 # -- version detection & migration ---------------------------------------
