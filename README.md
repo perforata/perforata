@@ -159,10 +159,13 @@ Pipelines can be stored, reloaded and shared:
   via the file uploader. JSON presets cannot execute code on load, so
   they are safe to share.
 
-> ⚠️ Legacy `.pfp` presets (cloudpickle) are still readable behind a
-> deprecation shim, but they are pickle-based and execute code on load —
-> only import `.pfp` files from sources you trust. Support will be
-> removed in the next minor version; re-save to convert to JSON.
+> Legacy `.pfp` presets (cloudpickle, pre-1.0) are **not supported** —
+> `presets.loads()` rejects anything that isn't JSON, and the uploader
+> only accepts `.json`. Unpickling arbitrary bytes is arbitrary code
+> execution, so there is no read shim and no opt-in. If you still have
+> `.pfp` files, open them with a pre-1.0 install of perforata (which had
+> `cloudpickle` as a dependency) and re-save them from the UI to convert
+> to JSON before upgrading.
 
 The **🎬 Demo gallery** sidebar button renders all factory presets into a
 single matrix image (the successor of the MVP's `--demo` grid), with a
