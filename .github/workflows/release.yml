@@ -10,7 +10,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Tag matches pyproject.toml version
         shell: bash
         run: |
@@ -62,10 +62,12 @@ jobs:
       id-token: write   # PyPI Trusted Publishing (OIDC)
       contents: write   # create the GitHub Release
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
+          # uv.lock is gitignored; key the cache on the project manifest
+          cache-dependency-glob: "pyproject.toml"
       - name: Build sdist + wheel
         run: uv build
       - name: Built artifacts match the tag

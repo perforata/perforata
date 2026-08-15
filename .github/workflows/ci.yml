@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
   workflow_call:
 
@@ -18,10 +18,12 @@ jobs:
             python: "3.12"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python }}
+          # uv.lock is gitignored; key the cache on the project manifest
+          cache-dependency-glob: "pyproject.toml"
       - name: Sync (all extras + dev)
         run: uv sync --all-extras
       - name: Lint
@@ -32,10 +34,11 @@ jobs:
   build-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
       - name: Build sdist + wheel
         run: uv build
       - name: Core-only import check (numpy only)
@@ -48,7 +51,7 @@ jobs:
           perforata.presets, perforata.generators, perforata.fields,
           perforata.modifiers, perforata.decorators, perforata.ops,
           perforata.exporters; print(perforata.__version__)"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: dist
           path: dist/
