@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-15
+
+### Fixed
+- CI runner warnings: bumped to Node 24-native actions
+  (`checkout@v5`, `setup-uv@v7`, `upload-artifact@v5`) and keyed the uv
+  dependency cache on `pyproject.toml` (uv.lock is gitignored, so the
+  cache never invalidated). CI now also triggers on pushes to `master`.
+
 ## [0.3.0] - 2026-08-15
 
 ### Added

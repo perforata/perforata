@@ -1,8 +1,10 @@
-name: CI
+# Workflow name must stay lowercase "ci": the master ruleset requires
+# status contexts like "ci / test (ubuntu-latest, 3.12)" verbatim.
+name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
   workflow_call:
 
@@ -18,10 +20,15 @@ jobs:
             python: "3.12"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python }}
+          # uv.lock is gitignored; key the cache on the project manifest
+          cache-dependency-glob: "pyproject.toml"
+          # Distinct suffix per job so parallel jobs on the same
+          # platform/python don't race to reserve one cache key.
+          cache-suffix: test-${{ matrix.os }}-${{ matrix.python }}
       - name: Sync (all extras + dev)
         run: uv sync --all-extras
       - name: Lint
@@ -32,10 +39,12 @@ jobs:
   build-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+          cache-suffix: build-check
       - name: Build sdist + wheel
         run: uv build
       - name: Core-only import check (numpy only)
@@ -48,7 +57,7 @@ jobs:
           perforata.presets, perforata.generators, perforata.fields,
           perforata.modifiers, perforata.decorators, perforata.ops,
           perforata.exporters; print(perforata.__version__)"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist/

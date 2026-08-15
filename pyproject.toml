@@ -1,6 +1,6 @@
 [project]
 name = "perforata"
-version = "0.3.0"
+version = "0.3.1"
 description = "Parametric perforation pattern generator — node-graph engine with unified CLI and optional Streamlit UI"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
