@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `w * h`). Lets browser-uploaded images flow through `perforata.api`
   without a client-side shim.
 
+### Removed
+- **BREAKING: `pickle`/`cloudpickle` support dropped entirely** — legacy
+  `.pfp` presets are no longer readable. `presets.loads()` now rejects any
+  non-JSON input with a `ValueError` instead of falling back to
+  `pickle.loads()`; the `DeprecationWarning`-gated shim (and the
+  `cloudpickle` dependency it required) is gone. `presets.list_presets()`,
+  `load()`, and `delete()` no longer look for `.pfp` files, and the
+  Streamlit uploader only accepts `.json`.
+
+  Unpickling attacker-controlled bytes is arbitrary code execution
+  (CWE-502, [#4](https://github.com/stepbot/perforata/issues/4)); the
+  previous warning-only mitigation did not prevent exploitation. If you
+  still have `.pfp` presets, open them with a pre-1.0 install of perforata
+  and re-save them from the UI to convert to JSON before upgrading.
+- `cloudpickle` dependency (was part of the `app` extra).
+
+This clears the last known code-execution surface ahead of a 1.0 release.
+
 ## [0.4.1] - 2026-08-15
 
 ### Security

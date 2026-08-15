@@ -1,6 +1,7 @@
-"""Tests of JSON preset storage and the legacy .pfp deprecation shim."""
+"""Tests of JSON preset storage and rejection of legacy pickle presets."""
 
 import json
+import pickle
 import sys
 
 import pytest
@@ -44,18 +45,24 @@ def test_rejects_newer_format():
         presets.loads(json.dumps(env).encode())
 
 
-def test_legacy_pfp_reads_with_deprecation_warning(tmp_path):
-    cloudpickle = pytest.importorskip("cloudpickle")
-    legacy = cloudpickle.dumps({
+def test_legacy_pickle_bytes_rejected():
+    """Pickle bytes must never be deserialized — CWE-502. No shim, no
+    opt-in: loads() rejects anything that isn't JSON outright."""
+    legacy = pickle.dumps({
         "format": "perforata-preset", "format_version": 1,
         "app_version": "0.2.0", "payload": PAYLOAD})
-    (tmp_path / "old.pfp").write_bytes(legacy)
-    with pytest.warns(DeprecationWarning, match="deprecated"):
-        assert presets.loads(legacy) == PAYLOAD
-    # Listed and loadable by name through the shim
-    assert "old" in presets.list_presets(directory=tmp_path)
-    with pytest.warns(DeprecationWarning):
-        assert presets.load("old", directory=tmp_path) == PAYLOAD
+    with pytest.raises(ValueError, match="no longer supported"):
+        presets.loads(legacy)
+
+
+def test_legacy_pfp_file_not_listed_or_loadable(tmp_path):
+    """A leftover .pfp file from a pre-1.0 install is neither surfaced
+    by list_presets() nor picked up by load() — only *.json counts, and
+    there is no fallback to a same-named .pfp file."""
+    (tmp_path / "old.pfp").write_bytes(pickle.dumps({"payload": PAYLOAD}))
+    assert presets.list_presets(directory=tmp_path) == []
+    with pytest.raises(FileNotFoundError):
+        presets.load("old", directory=tmp_path)
 
 
 # ----------------------------------------------------------------------
@@ -131,6 +138,7 @@ def test_symlink_escape_rejected(tmp_path):
     base = tmp_path / "presets"
     base.mkdir()
     (base / "link").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="escapes preset directory")
     with pytest.raises(ValueError, match="escapes preset directory"):
         presets.save("link/evil", PAYLOAD, directory=base)
 

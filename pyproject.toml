@@ -16,7 +16,7 @@ geo = ["shapely"]
 dxf = ["ezdxf"]
 raster = ["pillow"]
 render = ["matplotlib"]
-app = ["streamlit", "cloudpickle", "perforata[geo,dxf,raster,render]"]
+app = ["streamlit", "perforata[geo,dxf,raster,render]"]
 all = ["perforata[app]"]
 
 [project.scripts]

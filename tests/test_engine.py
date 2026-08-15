@@ -723,7 +723,7 @@ def test_preset_rejects_garbage():
     with pytest.raises(ValueError):
         presets.loads(b'{"not": "a preset"}')
     import pickle
-    with pytest.warns(DeprecationWarning), pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no longer supported"):
         presets.loads(pickle.dumps({"not": "a preset"}))
 
 
