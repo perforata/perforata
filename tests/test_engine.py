@@ -323,6 +323,31 @@ def test_shape_gradient_rectangle_default_is_square():
     assert np.allclose(rect.sample(uv), square.sample(uv))
 
 
+def test_field_offset_shifts_hotspot():
+    """offset(du, dv) moves a field's features by (du, dv) in uv space:
+    sampling the offset field at (0.5+du, 0.5+dv) matches sampling the
+    original field at its own center."""
+    f = RadialGradient(invert=True)  # peak (1.0) at (0.5, 0.5)
+    shifted = f.offset(0.2, -0.1)
+    base = f.sample(np.array([[0.5, 0.5]]))[0]
+    moved = shifted.sample(np.array([[0.7, 0.4]]))[0]
+    assert abs(base - moved) < 1e-9
+    # unshifted center is no longer the hot spot
+    assert shifted.sample(np.array([[0.5, 0.5]]))[0] < base
+
+
+def test_field_offset_composes_with_scaled():
+    """scaled() then offset(): the offset is applied in the already
+    -scaled uv space, i.e. it shifts the zoomed field's features by
+    exactly (du, dv), independent of the scale factor."""
+    f = RadialGradient(invert=True)
+    combo = f.scaled(2.0).offset(0.1, 0.0)
+    plain_scaled = f.scaled(2.0)
+    a = combo.sample(np.array([[0.6, 0.5]]))[0]
+    b = plain_scaled.sample(np.array([[0.5, 0.5]]))[0]
+    assert abs(a - b) < 1e-9
+
+
 def test_image_field_from_array():
     img = np.zeros((10, 10))
     img[:, 5:] = 1.0  # right half white

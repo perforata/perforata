@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Field offset**: `Field.offset(du, dv)` translates a field in uv
+  space (mirrors `Field.scaled`); every field def in the params schema
+  now accepts `offset_u`/`offset_v`, applied after `fscale`.
+- **`ImageField` in the params schema**: fields of `"type": "ImageField"`
+  are now first-class — `luminance_b64` (a base64-encoded uint8
+  luminance grid, row-major, `w`×`h`) plus `invert`/`fit`/`bg`/`smooth`,
+  validated at schema time (base64 well-formed, payload length matches
+  `w * h`). Lets browser-uploaded images flow through `perforata.api`
+  without a client-side shim.
+
 ### Removed
 - **BREAKING: `pickle`/`cloudpickle` support dropped entirely** — legacy
   `.pfp` presets are no longer readable. `presets.loads()` now rejects any

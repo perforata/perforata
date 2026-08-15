@@ -72,6 +72,18 @@ class Field(Node):
         """
         return _Scaled(self, s, center)
 
+    def offset(self, du: float, dv: float) -> "Field":
+        """Translate the field in uv space.
+
+        A positive ``du``/``dv`` shifts the field's features toward
+        u=1/v=1 (right/"up") — e.g. ``offset(0.25, -0.1)`` moves a
+        centered field's hot spot toward the right and down. Composes
+        with :meth:`scaled` in uv space (apply ``scaled`` first, then
+        ``offset``, to zoom about the original center before shifting
+        it).
+        """
+        return _Offset(self, du, dv)
+
 
 def _coerce(value) -> "Field":
     if isinstance(value, Field):
@@ -127,6 +139,20 @@ class _Scaled(Field):
     def sample(self, uv):
         s = max(self.s, 1e-9)
         return self.inner.sample((uv - self.center) / s + self.center)
+
+
+class _Offset(Field):
+    """Translate a field in uv space (see :meth:`Field.offset`)."""
+
+    def __init__(self, inner: Field, du: float, dv: float):
+        super().__init__(du=du, dv=dv)
+        self.inner = inner
+        self.du = float(du)
+        self.dv = float(dv)
+
+    def sample(self, uv):
+        d = np.array([self.du, self.dv])
+        return self.inner.sample(uv - d)
 
 
 class LinearGradient(Field):
