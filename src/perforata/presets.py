@@ -92,9 +92,21 @@ def loads(data: bytes):
 
 def _path_for(name: str, directory: Path | str | None = None) -> Path:
     directory = Path(directory) if directory else PRESET_DIR
+    base_dir = directory.resolve()
+    candidate_name = Path(name)
+
+    if candidate_name.is_absolute():
+        raise ValueError("preset name must be a relative file name")
+
     if not name.endswith((PRESET_EXT, LEGACY_EXT)):
         name = name + PRESET_EXT
-    return directory / name
+
+    path = (directory / name).resolve()
+    try:
+        path.relative_to(base_dir)
+    except ValueError as exc:
+        raise ValueError("preset path escapes preset directory") from exc
+    return path
 
 
 def save(name: str, payload, directory: Path | str | None = None) -> Path:
