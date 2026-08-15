@@ -1,4 +1,6 @@
-name: CI
+# Workflow name must stay lowercase "ci": the master ruleset requires
+# status contexts like "ci / test (ubuntu-latest, 3.12)" verbatim.
+name: ci
 
 on:
   push:
@@ -24,6 +26,9 @@ jobs:
           python-version: ${{ matrix.python }}
           # uv.lock is gitignored; key the cache on the project manifest
           cache-dependency-glob: "pyproject.toml"
+          # Distinct suffix per job so parallel jobs on the same
+          # platform/python don't race to reserve one cache key.
+          cache-suffix: test-${{ matrix.os }}-${{ matrix.python }}
       - name: Sync (all extras + dev)
         run: uv sync --all-extras
       - name: Lint
@@ -39,6 +44,7 @@ jobs:
         with:
           python-version: "3.12"
           cache-dependency-glob: "pyproject.toml"
+          cache-suffix: build-check
       - name: Build sdist + wheel
         run: uv build
       - name: Core-only import check (numpy only)
@@ -51,7 +57,7 @@ jobs:
           perforata.presets, perforata.generators, perforata.fields,
           perforata.modifiers, perforata.decorators, perforata.ops,
           perforata.exporters; print(perforata.__version__)"
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist/
