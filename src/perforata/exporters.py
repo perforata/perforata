@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 
+from ._deps import require
 from .graph import Node
 from .decorators import shapes_bounds
 
@@ -21,7 +22,7 @@ class DXFExporter(Node):
         self.layer = layer
 
     def run(self, shapes: list[dict]):
-        import ezdxf
+        ezdxf = require("ezdxf", "dxf")
         doc = ezdxf.new("R2010")
         if self.layer != "0":
             doc.layers.add(self.layer)

@@ -15,7 +15,12 @@ Architecture (a directed acyclic graph of processing steps):
 The legacy single-file MVP lives in the repository's ``mvp/`` folder.
 """
 
-__version__ = "0.2.0"
+from importlib.metadata import PackageNotFoundError, version as _version
+
+try:
+    __version__ = _version("perforata")
+except PackageNotFoundError:  # running from a source tree without install
+    __version__ = "0.0.0.dev0"
 
 from .pointcloud import PointCloud
 from .graph import Node, Pipeline, Graph

@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import math
 
+from ._deps import require
 from .graph import Node
-from .decorators import shape_bounds, shapes_bounds, scale_shape
+from .decorators import shapes_bounds, scale_shape
 
 
 # ----------------------------------------------------------------------
@@ -26,6 +27,7 @@ from .decorators import shape_bounds, shapes_bounds, scale_shape
 # ----------------------------------------------------------------------
 
 def _to_shapely(shape: dict):
+    require("shapely", "geo")
     from shapely.geometry import Point, Polygon
     if shape["type"] == "circle":
         return Point(shape["center"]).buffer(shape["radius"], quad_segs=32)
@@ -34,6 +36,7 @@ def _to_shapely(shape: dict):
 
 def _from_shapely(geom, size_hint: float) -> list[dict]:
     """Convert a shapely (Multi)Polygon back to shape dicts."""
+    require("shapely", "geo")
     from shapely.geometry import MultiPolygon, Polygon
     out = []
     geoms = geom.geoms if isinstance(geom, MultiPolygon) else [geom]
@@ -72,6 +75,7 @@ class Boundary:
         return cls("polygon", points=list(points))
 
     def to_shapely(self):
+        require("shapely", "geo")
         from shapely.geometry import Point, Polygon, box
         if self.kind == "rect":
             cx, cy = self.kw["center"]
@@ -186,6 +190,7 @@ def edge_clearance(shapes: list[dict], boundary: "Boundary") -> float | None:
     cuts = cutouts_only(shapes)
     if not cuts:
         return None
+    require("shapely", "geo")
     from shapely.geometry import MultiPolygon, Point
 
     poly = boundary.to_shapely()

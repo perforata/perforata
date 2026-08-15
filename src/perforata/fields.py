@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ._deps import require
 from .graph import Node
 
 
@@ -339,6 +340,7 @@ def _gaussian_blur(img: np.ndarray, sigma_px: float) -> np.ndarray:
 
 def _find_font(size: int, bold: bool, font_path: str | None):
     """Locate a scalable font, trying common cross-platform names."""
+    require("PIL", "raster")
     from PIL import ImageFont
     candidates = []
     if font_path:
@@ -360,6 +362,7 @@ def _render_text(text: str, resolution: int, bold: bool = True,
     """Rasterize text to a (H, W) luminance array: glyph=1, background=0.
 
     The glyph is scaled to fill ~80% of the canvas and centered."""
+    require("PIL", "raster")
     from PIL import Image, ImageDraw
 
     if not text:
@@ -452,6 +455,7 @@ def _to_luminance(image) -> np.ndarray:
         if arr.max() > 1.0:
             arr = arr / 255.0
     else:
+        require("PIL", "raster")
         from PIL import Image
         if isinstance(image, Image.Image):
             img = image

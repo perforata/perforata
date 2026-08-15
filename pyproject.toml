@@ -1,24 +1,30 @@
 [project]
 name = "perforata"
-version = "0.2.0"
-description = "Parametric perforation pattern generator — node-graph engine with Streamlit UI"
+version = "0.3.0"
+description = "Parametric perforation pattern generator — node-graph engine with unified CLI and optional Streamlit UI"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "numpy",
-    "ezdxf",
-    "shapely",
-    "matplotlib",
-    "pillow",
-    "streamlit",
-    "cloudpickle",
 ]
+
+[project.optional-dependencies]
+geo = ["shapely"]
+dxf = ["ezdxf"]
+raster = ["pillow"]
+render = ["matplotlib"]
+app = ["streamlit", "cloudpickle", "perforata[geo,dxf,raster,render]"]
+all = ["perforata[app]"]
+
+[project.scripts]
+perforata = "perforata.cli:main"
 
 [dependency-groups]
 dev = [
     "pytest",
+    "ruff",
 ]
 
 [build-system]
@@ -26,4 +32,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["perforata"]
+packages = ["src/perforata"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# Default (E4/E7/E9/F) is enough to catch real breakage without
+# imposing a style migration on the existing codebase.
+select = ["E4", "E7", "E9", "F"]

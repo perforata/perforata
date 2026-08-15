@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from ._deps import require
+
 
 def plot_shapes(shapes: list[dict], ax=None, linewidth: float = 0.8,
                 color: str = "black", title: str = ""):
     """Draw a shape list onto a matplotlib axis; returns the figure."""
-    import matplotlib.pyplot as plt
+    plt = require("matplotlib.pyplot", "render")
     from matplotlib.patches import Circle, Polygon
 
     if ax is None:
@@ -44,7 +46,7 @@ def plot_shapes(shapes: list[dict], ax=None, linewidth: float = 0.8,
 
 def plot_pointcloud(cloud, ax=None, title: str = ""):
     """Scatter plot of a PointCloud, colored by tag (debug aid)."""
-    import matplotlib.pyplot as plt
+    plt = require("matplotlib.pyplot", "render")
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(8, 8))
