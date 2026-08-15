@@ -138,7 +138,6 @@ def test_symlink_escape_rejected(tmp_path):
     base = tmp_path / "presets"
     base.mkdir()
     (base / "link").symlink_to(outside, target_is_directory=True)
-    with pytest.raises(ValueError, match="escapes preset directory")
     with pytest.raises(ValueError, match="escapes preset directory"):
         presets.save("link/evil", PAYLOAD, directory=base)
 
