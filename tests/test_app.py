@@ -13,7 +13,8 @@ from streamlit.testing.v1 import AppTest
 from perforata import presets
 
 TIMEOUT = 30
-APP_PATH = str(Path(__file__).parent.parent / "app.py")
+APP_PATH = str(Path(__file__).parent.parent / "src" / "perforata"
+               / "app.py")
 
 
 def _run_app() -> AppTest:
