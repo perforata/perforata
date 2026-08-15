@@ -1,6 +1,7 @@
 """Tests of JSON preset storage and the legacy .pfp deprecation shim."""
 
 import json
+import sys
 
 import pytest
 
@@ -55,6 +56,83 @@ def test_legacy_pfp_reads_with_deprecation_warning(tmp_path):
     assert "old" in presets.list_presets(directory=tmp_path)
     with pytest.warns(DeprecationWarning):
         assert presets.load("old", directory=tmp_path) == PAYLOAD
+
+
+# ----------------------------------------------------------------------
+# Path-traversal guard (_path_for): user-controlled preset names must
+# never produce a path outside the preset directory.
+# ----------------------------------------------------------------------
+
+TRAVERSAL_NAMES = [
+    "../evil",
+    "../../evil",
+    "sub/../../evil",
+    "../evil.json",
+]
+if sys.platform == "win32":
+    TRAVERSAL_NAMES += [
+        "..\\evil",            # backslash separator
+        "\\evil",              # rooted (drive-less) path
+        "D:evil",              # drive-relative path on another drive
+    ]
+
+
+@pytest.mark.parametrize("name", TRAVERSAL_NAMES)
+@pytest.mark.parametrize("op", ["save", "load", "delete"])
+def test_traversal_names_rejected(tmp_path, op, name):
+    base = tmp_path / "presets"
+    base.mkdir()
+    with pytest.raises(ValueError,
+                       match="escapes preset directory|relative file name"):
+        if op == "save":
+            presets.save(name, PAYLOAD, directory=base)
+        elif op == "load":
+            presets.load(name, directory=base)
+        else:
+            presets.delete(name, directory=base)
+
+
+def test_absolute_name_rejected(tmp_path):
+    victim = tmp_path / "victim.json"
+    victim.write_bytes(presets.dumps(PAYLOAD))
+    base = tmp_path / "presets"
+    base.mkdir()
+    for op in (lambda: presets.save(str(victim), PAYLOAD, directory=base),
+               lambda: presets.load(str(victim), directory=base),
+               lambda: presets.delete(str(victim), directory=base)):
+        with pytest.raises(ValueError, match="relative file name"):
+            op()
+    assert victim.exists()
+
+
+def test_traversal_cannot_touch_outside_files(tmp_path):
+    victim = tmp_path / "victim.json"
+    victim.write_bytes(presets.dumps(PAYLOAD))
+    base = tmp_path / "presets"
+    base.mkdir()
+    with pytest.raises(ValueError):
+        presets.delete("../victim", directory=base)
+    with pytest.raises(ValueError):
+        presets.save("../victim", {"ui_state": {}}, directory=base)
+    assert presets.loads(victim.read_bytes()) == PAYLOAD  # untouched
+
+
+def test_subdirectory_names_stay_inside(tmp_path):
+    path = presets.save("collection/pattern", PAYLOAD, directory=tmp_path)
+    assert path.is_relative_to(tmp_path.resolve())
+    assert presets.load("collection/pattern", directory=tmp_path) == PAYLOAD
+
+
+@pytest.mark.skipif(sys.platform == "win32",
+                    reason="POSIX symlink semantics")
+def test_symlink_escape_rejected(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    base = tmp_path / "presets"
+    base.mkdir()
+    (base / "link").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="escapes preset directory"):
+        presets.save("link/evil", PAYLOAD, directory=base)
 
 
 def test_factory_presets_are_json_safe():
