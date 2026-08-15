@@ -8,10 +8,9 @@ from perforata import __version__
 from perforata.cli import main
 
 PARAMS = {
-    "v": 1,
-    "generator": {"type": "HexGrid",
-                  "params": {"pitch": 10.0, "width": 100.0,
-                             "height": 80.0}},
+    "version": 2,
+    "generator": {"type": "HexGrid", "pitch": 10.0,
+                  "width": 100.0, "height": 80.0},
     "rules": {"*": {"shape": "hexagon", "fill": 0.8}},
 }
 
@@ -57,7 +56,33 @@ def test_render_rejects_invalid_params(tmp_path, capsys):
 
 def test_validate_ok(pipeline_file, capsys):
     assert main(["validate", str(pipeline_file)]) == 0
-    assert "OK" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "OK" in out
+    assert "schema v2" in out
+
+
+def test_validate_reports_v1(tmp_path, capsys):
+    v1 = tmp_path / "v1.json"
+    v1.write_text(json.dumps({
+        "v": 1,
+        "generator": {"type": "HexGrid", "params": {"pitch": 10.0}},
+    }))
+    assert main(["validate", str(v1)]) == 0
+    assert "schema v1" in capsys.readouterr().out
+
+
+def test_schema_stdout(capsys):
+    assert main(["schema"]) == 0
+    schema = json.loads(capsys.readouterr().out)
+    assert schema["title"] == "PipelineDef"
+    assert "generator" in schema["properties"]
+
+
+def test_schema_to_file(tmp_path, capsys):
+    out = tmp_path / "pipeline.schema.json"
+    assert main(["schema", "-o", str(out)]) == 0
+    schema = json.loads(out.read_text(encoding="utf-8"))
+    assert schema["title"] == "PipelineDef"
 
 
 def test_validate_missing_file():

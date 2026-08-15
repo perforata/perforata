@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-15
+
+### Added
+- **Typed params schema** (`perforata.schema`): pydantic v2 models for
+  the whole pipeline contract (`PipelineDef`, discriminated unions for
+  generators / modifiers / fields, `ShapeRule`, `Manufacturing`).
+  Invalid params now fail with precise, path-addressed messages
+  (`modifiers.0.field.type: ...`) instead of deep engine tracebacks,
+  and typo'd keys are rejected (`extra="forbid"`).
+- `perforata schema` CLI subcommand: print (or `-o` write) the params
+  JSON Schema for downstream codegen; published as a release asset
+  (`pipeline.schema.json`).
+- `perforata.schema.migrate()` / `detect_version()`: mechanical
+  v1 -> v2 params migration; `evaluate`/`export`/`validate` auto-migrate
+  v1 documents (with a `DeprecationWarning`), and `perforata validate`
+  reports the detected schema version.
+- Schema snapshot test (`tests/data/pipeline.schema.json`): CI fails if
+  the schema changes without regenerating the committed snapshot.
+
+### Changed
+- **Params schema v2** (`SCHEMA_VERSION = 2`): node definitions are
+  flat — `{"type": "HexGrid", "pitch": 9.0}` instead of
+  `{"type": "HexGrid", "params": {"pitch": 9.0}}` — and the version key
+  is `"version"` (was `"v"`). v1 documents keep working via automatic
+  migration.
+- **pydantic (>= 2.7) is now a core dependency** alongside numpy: the
+  params contract is the package's public API boundary.
+- `api.evaluate` stats are now guaranteed plain JSON types (fixed
+  potential `np.float64` leakage).
+
+### Deprecated
+- Params schema v1 (nested `"params"` keys). Auto-migration keeps v1
+  documents working for now; migrate saved documents with
+  `perforata.schema.migrate()`.
+
 ## [0.3.1] - 2026-08-15
 
 ### Fixed

@@ -1,0 +1,1014 @@
+{
+  "$defs": {
+    "AttributeFilterDef": {
+      "additionalProperties": false,
+      "properties": {
+        "attr": {
+          "default": "scale",
+          "title": "Attr",
+          "type": "string"
+        },
+        "hi": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hi"
+        },
+        "lo": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lo"
+        },
+        "type": {
+          "const": "AttributeFilter",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "AttributeFilterDef",
+      "type": "object"
+    },
+    "CartesianGridDef": {
+      "additionalProperties": false,
+      "properties": {
+        "alternate": {
+          "default": false,
+          "title": "Alternate",
+          "type": "boolean"
+        },
+        "col_stagger": {
+          "default": 0.0,
+          "title": "Col Stagger",
+          "type": "number"
+        },
+        "fit": {
+          "default": false,
+          "title": "Fit",
+          "type": "boolean"
+        },
+        "height": {
+          "default": 100.0,
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "number"
+        },
+        "major_every": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Major Every",
+          "type": "integer"
+        },
+        "pitch_x": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "title": "Pitch X",
+          "type": "number"
+        },
+        "pitch_y": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "title": "Pitch Y",
+          "type": "number"
+        },
+        "stagger": {
+          "default": 0.0,
+          "title": "Stagger",
+          "type": "number"
+        },
+        "type": {
+          "const": "CartesianGrid",
+          "title": "Type",
+          "type": "string"
+        },
+        "width": {
+          "default": 100.0,
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "CartesianGridDef",
+      "type": "object"
+    },
+    "CircleBoundaryDef": {
+      "additionalProperties": false,
+      "properties": {
+        "diameter": {
+          "default": 120.0,
+          "exclusiveMinimum": 0,
+          "title": "Diameter",
+          "type": "number"
+        },
+        "kind": {
+          "const": "circle",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "CircleBoundaryDef",
+      "type": "object"
+    },
+    "ConcentricRingsDef": {
+      "additionalProperties": false,
+      "properties": {
+        "alternate": {
+          "default": false,
+          "title": "Alternate",
+          "type": "boolean"
+        },
+        "factor": {
+          "default": 1.15,
+          "title": "Factor",
+          "type": "number"
+        },
+        "invert": {
+          "default": false,
+          "title": "Invert",
+          "type": "boolean"
+        },
+        "major_every": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Major Every",
+          "type": "integer"
+        },
+        "mode": {
+          "default": "exponential",
+          "enum": [
+            "exponential",
+            "quadratic",
+            "linear"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "phase": {
+          "default": 0.0,
+          "title": "Phase",
+          "type": "number"
+        },
+        "r0": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "title": "R0",
+          "type": "number"
+        },
+        "rings": {
+          "default": 15,
+          "minimum": 1,
+          "title": "Rings",
+          "type": "integer"
+        },
+        "spokes": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Spokes",
+          "type": "integer"
+        },
+        "stagger": {
+          "default": 0.0,
+          "title": "Stagger",
+          "type": "number"
+        },
+        "twist": {
+          "default": 0.0,
+          "title": "Twist",
+          "type": "number"
+        },
+        "type": {
+          "const": "ConcentricRings",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ConcentricRingsDef",
+      "type": "object"
+    },
+    "CropDef": {
+      "additionalProperties": false,
+      "properties": {
+        "boundary": {
+          "discriminator": {
+            "mapping": {
+              "circle": "#/$defs/CircleBoundaryDef",
+              "rect": "#/$defs/RectBoundaryDef"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RectBoundaryDef"
+            },
+            {
+              "$ref": "#/$defs/CircleBoundaryDef"
+            }
+          ],
+          "title": "Boundary"
+        },
+        "margin": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Margin",
+          "type": "number"
+        },
+        "mode": {
+          "default": "cull",
+          "enum": [
+            "slice",
+            "cull",
+            "center"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "outline": {
+          "default": true,
+          "title": "Outline",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "boundary"
+      ],
+      "title": "CropDef",
+      "type": "object"
+    },
+    "DensityWarpDef": {
+      "additionalProperties": false,
+      "properties": {
+        "axes": {
+          "default": "both",
+          "enum": [
+            "both",
+            "x",
+            "y"
+          ],
+          "title": "Axes",
+          "type": "string"
+        },
+        "field": {
+          "discriminator": {
+            "mapping": {
+              "Expression": "#/$defs/ExpressionDef",
+              "LinearGradient": "#/$defs/LinearGradientDef",
+              "RadialGradient": "#/$defs/RadialGradientDef",
+              "ShapeGradient": "#/$defs/ShapeGradientDef"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LinearGradientDef"
+            },
+            {
+              "$ref": "#/$defs/RadialGradientDef"
+            },
+            {
+              "$ref": "#/$defs/ShapeGradientDef"
+            },
+            {
+              "$ref": "#/$defs/ExpressionDef"
+            }
+          ],
+          "title": "Field"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "const": "symmetric",
+              "type": "string"
+            },
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "resolution": {
+          "default": 256,
+          "minimum": 8,
+          "title": "Resolution",
+          "type": "integer"
+        },
+        "strength": {
+          "default": 1.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Strength",
+          "type": "number"
+        },
+        "type": {
+          "const": "DensityWarp",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "field"
+      ],
+      "title": "DensityWarpDef",
+      "type": "object"
+    },
+    "ExpressionDef": {
+      "additionalProperties": false,
+      "properties": {
+        "expr": {
+          "title": "Expr",
+          "type": "string"
+        },
+        "fscale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Fscale",
+          "type": "number"
+        },
+        "type": {
+          "const": "Expression",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "expr"
+      ],
+      "title": "ExpressionDef",
+      "type": "object"
+    },
+    "FieldModulateDef": {
+      "additionalProperties": false,
+      "properties": {
+        "attr": {
+          "default": "scale",
+          "title": "Attr",
+          "type": "string"
+        },
+        "curve": {
+          "default": "linear",
+          "enum": [
+            "linear",
+            "quadratic",
+            "exponential",
+            "gaussian",
+            "sphere"
+          ],
+          "title": "Curve",
+          "type": "string"
+        },
+        "field": {
+          "discriminator": {
+            "mapping": {
+              "Expression": "#/$defs/ExpressionDef",
+              "LinearGradient": "#/$defs/LinearGradientDef",
+              "RadialGradient": "#/$defs/RadialGradientDef",
+              "ShapeGradient": "#/$defs/ShapeGradientDef"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LinearGradientDef"
+            },
+            {
+              "$ref": "#/$defs/RadialGradientDef"
+            },
+            {
+              "$ref": "#/$defs/ShapeGradientDef"
+            },
+            {
+              "$ref": "#/$defs/ExpressionDef"
+            }
+          ],
+          "title": "Field"
+        },
+        "hi": {
+          "default": 1.0,
+          "title": "Hi",
+          "type": "number"
+        },
+        "k": {
+          "default": 3.0,
+          "title": "K",
+          "type": "number"
+        },
+        "lo": {
+          "default": 0.0,
+          "title": "Lo",
+          "type": "number"
+        },
+        "mode": {
+          "default": "multiply",
+          "enum": [
+            "multiply",
+            "set",
+            "add"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "const": "symmetric",
+              "type": "string"
+            },
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "type": {
+          "const": "FieldModulate",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "field"
+      ],
+      "title": "FieldModulateDef",
+      "type": "object"
+    },
+    "HexGridDef": {
+      "additionalProperties": false,
+      "properties": {
+        "alternate": {
+          "default": false,
+          "title": "Alternate",
+          "type": "boolean"
+        },
+        "fit": {
+          "default": false,
+          "title": "Fit",
+          "type": "boolean"
+        },
+        "height": {
+          "default": 100.0,
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "number"
+        },
+        "major_every": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Major Every",
+          "type": "integer"
+        },
+        "pitch": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "title": "Pitch",
+          "type": "number"
+        },
+        "type": {
+          "const": "HexGrid",
+          "title": "Type",
+          "type": "string"
+        },
+        "width": {
+          "default": 100.0,
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "HexGridDef",
+      "type": "object"
+    },
+    "LinearGradientDef": {
+      "additionalProperties": false,
+      "properties": {
+        "angle_deg": {
+          "default": 0.0,
+          "title": "Angle Deg",
+          "type": "number"
+        },
+        "fscale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Fscale",
+          "type": "number"
+        },
+        "type": {
+          "const": "LinearGradient",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "LinearGradientDef",
+      "type": "object"
+    },
+    "Manufacturing": {
+      "additionalProperties": false,
+      "properties": {
+        "crop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CropDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "min_hole": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Min Hole",
+          "type": "number"
+        },
+        "min_wall": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Min Wall",
+          "type": "number"
+        },
+        "target_d": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Target D",
+          "type": "number"
+        }
+      },
+      "title": "Manufacturing",
+      "type": "object"
+    },
+    "PolarWarpDef": {
+      "additionalProperties": false,
+      "properties": {
+        "r_offset": {
+          "default": 100.0,
+          "title": "R Offset",
+          "type": "number"
+        },
+        "type": {
+          "const": "PolarWarp",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "PolarWarpDef",
+      "type": "object"
+    },
+    "RadialGradientDef": {
+      "additionalProperties": false,
+      "properties": {
+        "fscale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Fscale",
+          "type": "number"
+        },
+        "invert": {
+          "default": false,
+          "title": "Invert",
+          "type": "boolean"
+        },
+        "type": {
+          "const": "RadialGradient",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "RadialGradientDef",
+      "type": "object"
+    },
+    "RectBoundaryDef": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "default": 150.0,
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "number"
+        },
+        "kind": {
+          "const": "rect",
+          "title": "Kind",
+          "type": "string"
+        },
+        "width": {
+          "default": 200.0,
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "RectBoundaryDef",
+      "type": "object"
+    },
+    "RotateDef": {
+      "additionalProperties": false,
+      "properties": {
+        "degrees": {
+          "default": 0.0,
+          "title": "Degrees",
+          "type": "number"
+        },
+        "type": {
+          "const": "Rotate",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "RotateDef",
+      "type": "object"
+    },
+    "ScaleDef": {
+      "additionalProperties": false,
+      "properties": {
+        "sx": {
+          "default": 1.0,
+          "title": "Sx",
+          "type": "number"
+        },
+        "sy": {
+          "default": 1.0,
+          "title": "Sy",
+          "type": "number"
+        },
+        "type": {
+          "const": "Scale",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ScaleDef",
+      "type": "object"
+    },
+    "ShapeGradientDef": {
+      "additionalProperties": false,
+      "properties": {
+        "falloff": {
+          "default": "linear",
+          "enum": [
+            "linear",
+            "quadratic",
+            "exponential",
+            "gaussian",
+            "sphere"
+          ],
+          "title": "Falloff",
+          "type": "string"
+        },
+        "fscale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Fscale",
+          "type": "number"
+        },
+        "height": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "number"
+        },
+        "invert": {
+          "default": false,
+          "title": "Invert",
+          "type": "boolean"
+        },
+        "k": {
+          "default": 3.0,
+          "title": "K",
+          "type": "number"
+        },
+        "shape": {
+          "default": "circle",
+          "enum": [
+            "circle",
+            "square",
+            "rectangle",
+            "hexagon"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "type": {
+          "const": "ShapeGradient",
+          "title": "Type",
+          "type": "string"
+        },
+        "width": {
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ShapeGradientDef",
+      "type": "object"
+    },
+    "ShapeRule": {
+      "additionalProperties": false,
+      "description": "A cutout recipe attached to a tag (see decorators.ShapeSpec).",
+      "properties": {
+        "absolute": {
+          "default": false,
+          "title": "Absolute",
+          "type": "boolean"
+        },
+        "fill": {
+          "default": 0.7,
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Fill",
+          "type": "number"
+        },
+        "rotation": {
+          "default": 0.0,
+          "title": "Rotation",
+          "type": "number"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "enum": [
+                "circle",
+                "triangle",
+                "square",
+                "pentagon",
+                "hexagon"
+              ],
+              "type": "string"
+            },
+            {
+              "minimum": 3,
+              "type": "integer"
+            }
+          ],
+          "default": "hexagon",
+          "title": "Shape"
+        }
+      },
+      "title": "ShapeRule",
+      "type": "object"
+    },
+    "ShearDef": {
+      "additionalProperties": false,
+      "properties": {
+        "shx": {
+          "default": 0.0,
+          "title": "Shx",
+          "type": "number"
+        },
+        "shy": {
+          "default": 0.0,
+          "title": "Shy",
+          "type": "number"
+        },
+        "type": {
+          "const": "Shear",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ShearDef",
+      "type": "object"
+    },
+    "TagFilterDef": {
+      "additionalProperties": false,
+      "properties": {
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
+        "type": {
+          "const": "TagFilter",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "TagFilterDef",
+      "type": "object"
+    },
+    "TranslateDef": {
+      "additionalProperties": false,
+      "properties": {
+        "dx": {
+          "default": 0.0,
+          "title": "Dx",
+          "type": "number"
+        },
+        "dy": {
+          "default": 0.0,
+          "title": "Dy",
+          "type": "number"
+        },
+        "type": {
+          "const": "Translate",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "TranslateDef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A complete pipeline params document (schema v2).",
+  "properties": {
+    "generator": {
+      "discriminator": {
+        "mapping": {
+          "CartesianGrid": "#/$defs/CartesianGridDef",
+          "ConcentricRings": "#/$defs/ConcentricRingsDef",
+          "HexGrid": "#/$defs/HexGridDef"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CartesianGridDef"
+        },
+        {
+          "$ref": "#/$defs/HexGridDef"
+        },
+        {
+          "$ref": "#/$defs/ConcentricRingsDef"
+        }
+      ],
+      "title": "Generator"
+    },
+    "manufacturing": {
+      "$ref": "#/$defs/Manufacturing"
+    },
+    "modifiers": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "AttributeFilter": "#/$defs/AttributeFilterDef",
+            "DensityWarp": "#/$defs/DensityWarpDef",
+            "FieldModulate": "#/$defs/FieldModulateDef",
+            "PolarWarp": "#/$defs/PolarWarpDef",
+            "Rotate": "#/$defs/RotateDef",
+            "Scale": "#/$defs/ScaleDef",
+            "Shear": "#/$defs/ShearDef",
+            "TagFilter": "#/$defs/TagFilterDef",
+            "Translate": "#/$defs/TranslateDef"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/RotateDef"
+          },
+          {
+            "$ref": "#/$defs/ScaleDef"
+          },
+          {
+            "$ref": "#/$defs/ShearDef"
+          },
+          {
+            "$ref": "#/$defs/TranslateDef"
+          },
+          {
+            "$ref": "#/$defs/PolarWarpDef"
+          },
+          {
+            "$ref": "#/$defs/FieldModulateDef"
+          },
+          {
+            "$ref": "#/$defs/DensityWarpDef"
+          },
+          {
+            "$ref": "#/$defs/AttributeFilterDef"
+          },
+          {
+            "$ref": "#/$defs/TagFilterDef"
+          }
+        ]
+      },
+      "title": "Modifiers",
+      "type": "array"
+    },
+    "name": {
+      "default": "untitled",
+      "title": "Name",
+      "type": "string"
+    },
+    "rules": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ShapeRule"
+      },
+      "title": "Rules",
+      "type": "object"
+    },
+    "version": {
+      "const": 2,
+      "default": 2,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "generator"
+  ],
+  "title": "PipelineDef",
+  "type": "object"
+}

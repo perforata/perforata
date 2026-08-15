@@ -70,6 +70,10 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
       - name: Build sdist + wheel
         run: uv build
+      - name: Export pipeline JSON Schema
+        run: |
+          uv run --with dist/perforata-*.whl --no-project -- \
+            perforata schema -o pipeline.schema.json
       - name: Built artifacts match the tag
         shell: bash
         run: |
@@ -95,4 +99,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: release_notes.md
-          files: dist/*
+          files: |
+            dist/*
+            pipeline.schema.json
