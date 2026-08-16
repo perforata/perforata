@@ -6,6 +6,8 @@ node-graph engine with an interactive Streamlit UI.
 
 ![Demo gallery of all factory presets](docs/demo_gallery.png)
 
+🌐 **Try it live:** Play with perforata right in your browser for free, no registration required, at [perforata.io](https://perforata.io/).
+
 The matrix above renders every factory preset; view it live via the
 **🎬 Demo gallery** button in the UI sidebar, or regenerate the image with
 `uv run python -m perforata.demo docs/demo_gallery.png`.
