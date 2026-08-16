@@ -40,8 +40,17 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://pypi.org/pypi/perforata/$VERSION/json")
+          STATUS=$(python3 -c "
+          import urllib.request
+          try:
+              urllib.request.urlopen('https://pypi.org/pypi/perforata/${VERSION}/json')
+              print('200')
+          except Exception as e:
+              if hasattr(e, 'code'):
+                  print(e.code)
+              else:
+                  print('000')
+          ")
           if [ "$STATUS" = "200" ]; then
             echo "::error::perforata $VERSION already exists on PyPI." \
                  "Bump the version — releases are immutable."
